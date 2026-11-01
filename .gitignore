@@ -1,0 +1,17 @@
+/work/
+/data/
+/MLIP/*
+!/MLIP/README.md
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+build/
+dist/
+*.model
+*.pt
+*.pth
+*.ckpt
+*.zip
+.env
+.env.*

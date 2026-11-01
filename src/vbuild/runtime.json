@@ -1,0 +1,248 @@
+{
+  "python_min": [
+    3,
+    11
+  ],
+  "python_max": [
+    3,
+    14
+  ],
+  "recommended": [
+    3,
+    12
+  ],
+  "gui": [
+    "numpy==2.4.6",
+    "ase==3.26.0",
+    "scipy==1.16.2",
+    "PySide6==6.11.2",
+    "pyvista==0.49.0",
+    "pyvistaqt==0.13.1",
+    "vtk==9.7.1",
+    "spglib==2.6.0",
+    "matplotlib==3.10.6"
+  ],
+  "nep": [
+    "numpy==2.4.6",
+    "ase==3.26.0",
+    "scipy==1.16.2",
+    "nep-adapters[ase]==1.0.3"
+  ],
+  "mace": [
+    "numpy==2.4.6",
+    "ase==3.26.0",
+    "scipy==1.16.2",
+    "mace-torch==0.3.14"
+  ],
+  "torch": "2.9.0",
+  "torch_indexes": {
+    "cpu": "https://download.pytorch.org/whl/cpu",
+    "cuda": "https://download.pytorch.org/whl/cu128"
+  },
+  "models": {
+    "nep89": {
+      "url": "https://raw.githubusercontent.com/brucefan1983/GPUMD/v4.0/potentials/nep/nep89_20250409/nep89_20250409.txt",
+      "sha256": "75168ece02e840e4a32644f982b78d43cba697f5b64b4c8134ab66c7a8c28be1",
+      "bytes": 15622195
+    },
+    "small-0b2": {
+      "url": "https://github.com/ACEsuit/mace-foundations/releases/download/mace_mp_0b2/mace-small-density-agnesi-stress.model",
+      "sha256": "d5773bf9440e96d6eb8c598f84bd0e6369fcfa432f626a87f890e07da3c651c9",
+      "bytes": 67622684
+    },
+    "mp-0": {
+      "url": "https://github.com/ACEsuit/mace-foundations/releases/download/mace_mp_0/2023-12-10-mace-128-L0_energy_epoch-249.model",
+      "sha256": "2ddb079cee0e131eaaf6912ba581b394551ead283e95c99cfe78c605d10b5736",
+      "bytes": 32581838
+    },
+    "mh-1": {
+      "url": "https://huggingface.co/mace-foundations/mace-mh-1/resolve/95fc198fe533fd351b4b74bd0fdbdc6c10a2dddd/mace-mh-1.model",
+      "sha256": "ec00a2705854622fbbd898ccfb7701072fcd674709102d009fb919c1b8cc5dde",
+      "bytes": 59208715
+    }
+  },
+  "gui_bounds": {
+    "numpy": [
+      [
+        2,
+        0,
+        0
+      ],
+      [
+        3,
+        0,
+        0
+      ]
+    ],
+    "ase": [
+      [
+        3,
+        26,
+        0
+      ],
+      [
+        4,
+        0,
+        0
+      ]
+    ],
+    "scipy": [
+      [
+        1,
+        13,
+        0
+      ],
+      [
+        2,
+        0,
+        0
+      ]
+    ],
+    "PySide6": [
+      [
+        6,
+        8,
+        0
+      ],
+      [
+        7,
+        0,
+        0
+      ]
+    ],
+    "pyvista": [
+      [
+        0,
+        46,
+        0
+      ],
+      [
+        1,
+        0,
+        0
+      ]
+    ],
+    "pyvistaqt": [
+      [
+        0,
+        11,
+        0
+      ],
+      [
+        1,
+        0,
+        0
+      ]
+    ],
+    "vtk": [
+      [
+        9,
+        4,
+        0
+      ],
+      [
+        10,
+        0,
+        0
+      ]
+    ],
+    "spglib": [
+      [
+        2,
+        6,
+        0
+      ],
+      [
+        3,
+        0,
+        0
+      ]
+    ],
+    "matplotlib": [
+      [
+        3,
+        9,
+        0
+      ],
+      [
+        4,
+        0,
+        0
+      ]
+    ]
+  },
+  "engine_bounds": {
+    "numpy": [
+      [
+        2,
+        0,
+        0
+      ],
+      [
+        3,
+        0,
+        0
+      ]
+    ],
+    "ase": [
+      [
+        3,
+        26,
+        0
+      ],
+      [
+        4,
+        0,
+        0
+      ]
+    ],
+    "scipy": [
+      [
+        1,
+        13,
+        0
+      ],
+      [
+        2,
+        0,
+        0
+      ]
+    ],
+    "nep-adapters": [
+      [
+        1,
+        0,
+        3
+      ],
+      [
+        2,
+        0,
+        0
+      ]
+    ],
+    "mace-torch": [
+      [
+        0,
+        3,
+        14
+      ],
+      [
+        0,
+        4,
+        0
+      ]
+    ],
+    "torch": [
+      [
+        2,
+        9,
+        0
+      ],
+      [
+        3,
+        0,
+        0
+      ]
+    ]
+  }
+}

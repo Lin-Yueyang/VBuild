@@ -1,0 +1,857 @@
+{
+  "version": "0.3.26",
+  "platform": "Windows lightweight",
+  "bytes": 1041314,
+  "files": [
+    {
+      "path": ".gitattributes",
+      "bytes": 58,
+      "sha256": "d8b79f80ab38dc8cecdb208cf737612dd31f085d2578371c321b125304c7395f"
+    },
+    {
+      "path": ".gitignore",
+      "bytes": 138,
+      "sha256": "413d9d28283d1bf6250880cec26defe067b08f94024f2184d9d152ed16723101"
+    },
+    {
+      "path": "MLIP/README.md",
+      "bytes": 100,
+      "sha256": "1fe2f17d22fed0983247ba7bd0eb649759b08e03b3cca872358eb19093c9b039"
+    },
+    {
+      "path": "README.md",
+      "bytes": 3866,
+      "sha256": "fdbfa10fa3c0def4bd0cd9cedd882b8fed770d8d3dd3a0778020514f87a18d01"
+    },
+    {
+      "path": "VBuild.exe",
+      "bytes": 69120,
+      "sha256": "d9a191e189db9f943305c02520477f406b62f1b9236383d5310ac5754dd3d70a"
+    },
+    {
+      "path": "examples/POSCAR",
+      "bytes": 133,
+      "sha256": "1ac6a4d6e600c8808d3ef1a5c4b88862dd689ac1e28f012ae3f3404ebd78b40d"
+    },
+    {
+      "path": "gui.pyw",
+      "bytes": 261,
+      "sha256": "c261c5670db08f8491325faa6e23e81081867e6da4e7dda65cb3185f158e6293"
+    },
+    {
+      "path": "pyproject.toml",
+      "bytes": 783,
+      "sha256": "0564c9041f5fb028d052ef826754773aeaaea052f2370e1fe6497c0b5962e72e"
+    },
+    {
+      "path": "run.py",
+      "bytes": 231,
+      "sha256": "9563412e550891896bc598e7af509eca1afc2412e402aa2a0d9fe87106177ae9"
+    },
+    {
+      "path": "src/vbuild/__init__.py",
+      "bytes": 68,
+      "sha256": "b3e03fe4a6427df26972da609d14ddaca95d9e2636614f8ebce5b713946d2ce4"
+    },
+    {
+      "path": "src/vbuild/__main__.py",
+      "bytes": 30,
+      "sha256": "6d8b7d7846a845059d7a3107143f11131f63c5511d669b44085b15ec5e3d2279"
+    },
+    {
+      "path": "src/vbuild/app.py",
+      "bytes": 6794,
+      "sha256": "9605f78edd698c957fbe65d8b31ef251881b3e0a7d7339dcd16bc0b51c445bf1"
+    },
+    {
+      "path": "src/vbuild/appearance.py",
+      "bytes": 937,
+      "sha256": "2bb6c28256be89a2c9a5055d349e84ea4e3292960cd0fc3d2799eaa22c7f13b9"
+    },
+    {
+      "path": "src/vbuild/atoms.py",
+      "bytes": 9823,
+      "sha256": "5e69764b09519c44ec88ecd7ad4343b3c7c95f0fa3602ed1994f8490da27074f"
+    },
+    {
+      "path": "src/vbuild/bader.py",
+      "bytes": 5159,
+      "sha256": "3a995443537c5845b678afde1f26e85bde1a90066da8272c9fdae62aba777e1b"
+    },
+    {
+      "path": "src/vbuild/bader_panel.py",
+      "bytes": 5752,
+      "sha256": "4bc8422a2377b886b6cc84ffc80a0cc4cf6606dccf287dff29705f959ba0275a"
+    },
+    {
+      "path": "src/vbuild/bond_dialog.py",
+      "bytes": 4379,
+      "sha256": "0085aa8b0c8f612f00929e76e0f3c110811f535b7ab029e177a0538628d07847"
+    },
+    {
+      "path": "src/vbuild/bonds.py",
+      "bytes": 3593,
+      "sha256": "95ec3226cadf19b89b6e482c86e273650b7c097dd01810e4e2eee0bf4a199bd5"
+    },
+    {
+      "path": "src/vbuild/build.py",
+      "bytes": 8506,
+      "sha256": "774f1857e8989c1668234428ad3779c63f36b8183bd459d88b9506b55d359b5d"
+    },
+    {
+      "path": "src/vbuild/build_dialog.py",
+      "bytes": 11646,
+      "sha256": "b7ed945ccd085db085b537b1f8c8d2654eb25a46c5fcc4e8a665eb17c5d0603f"
+    },
+    {
+      "path": "src/vbuild/catalog.py",
+      "bytes": 2149,
+      "sha256": "5c0f677637037a96e8c2a27d48fb7e2d47197ee8c53effe22bed09b7dc84952f"
+    },
+    {
+      "path": "src/vbuild/cli.py",
+      "bytes": 2369,
+      "sha256": "bfec10d084db73f4c9434f72fdf9e04663e3d04b4d03b98077db23bba3b80176"
+    },
+    {
+      "path": "src/vbuild/clipboard.py",
+      "bytes": 3812,
+      "sha256": "605d0cf824674031cc416165de49e4eecc2e80318d6bd5778b13eb8158817b0e"
+    },
+    {
+      "path": "src/vbuild/close.py",
+      "bytes": 1376,
+      "sha256": "a9fcf95b761fc55583d564810e0c5f7ee7cc96597663ffc983e44ccab0cc214a"
+    },
+    {
+      "path": "src/vbuild/color.py",
+      "bytes": 4408,
+      "sha256": "cdeca89e66e63819edaf674dbf7aaa86b0f4bf4467638a4a58db62a54ad08ac4"
+    },
+    {
+      "path": "src/vbuild/colors.py",
+      "bytes": 425,
+      "sha256": "33a03f66b258b5348d309809a618f3b4b017bf8bd32a6632f2772bb160e620a1"
+    },
+    {
+      "path": "src/vbuild/compare.py",
+      "bytes": 14166,
+      "sha256": "d3d34c0ecf0852fb0d867aec63256c048323441ffa60f8b1feefb0e7377f56b8"
+    },
+    {
+      "path": "src/vbuild/contacts.py",
+      "bytes": 1599,
+      "sha256": "ed3919d8a53548d117c5347727162b8e07c6f8fb65b932e9bcb9289ecc1e1a2b"
+    },
+    {
+      "path": "src/vbuild/create_dialog.py",
+      "bytes": 17891,
+      "sha256": "5a2ee94f1cf36c4a3da527eb22243ad7cf273731103242dd5ae11e7980eb5bc8"
+    },
+    {
+      "path": "src/vbuild/curve_image.py",
+      "bytes": 1341,
+      "sha256": "29ebd4e87d146ab2da9c368f878c0cb83bbc6c90c33a13a1cadac348f4ab23d8"
+    },
+    {
+      "path": "src/vbuild/curves.py",
+      "bytes": 19725,
+      "sha256": "294e53d775da35ac4ab0737af13e329635f4428120f4e6151e14d182000e0b4c"
+    },
+    {
+      "path": "src/vbuild/devices.py",
+      "bytes": 674,
+      "sha256": "42a40b8a254f5539cd1dc274df338884569423f18d94a10a4af64e18a931a823"
+    },
+    {
+      "path": "src/vbuild/display.py",
+      "bytes": 4052,
+      "sha256": "f46a64892c50e5b59aadb95fd9edde9aeefa52a97fab9d107d6b8675257cf894"
+    },
+    {
+      "path": "src/vbuild/draft.py",
+      "bytes": 4035,
+      "sha256": "0281630eb93c0c95f861946b5a003d2382bd34731984003c6e0754dd8ca91677"
+    },
+    {
+      "path": "src/vbuild/element_filter.py",
+      "bytes": 1827,
+      "sha256": "b065ae06646e6e3775cbea6106101fb2f57ae606f384a2eb4ed2a0338b51df40"
+    },
+    {
+      "path": "src/vbuild/engine.py",
+      "bytes": 6148,
+      "sha256": "b587824d7597b3f7c91fd0ee1cabab21cb3a68829a9294aef7904ac6bed0fd5c"
+    },
+    {
+      "path": "src/vbuild/environment.py",
+      "bytes": 11589,
+      "sha256": "3117df1a3dd3b2b00d1c7713f609f1539d65d350e1d3f15247ace692bc95e377"
+    },
+    {
+      "path": "src/vbuild/export_dialog.py",
+      "bytes": 5159,
+      "sha256": "3776e85779004f3dc04caf39c6bad4f689d73dc7d2383454b9aca007fb2adea6"
+    },
+    {
+      "path": "src/vbuild/fixed.py",
+      "bytes": 1779,
+      "sha256": "426beb927081cf1ff028617ecfa6c3e6f604b1f473eb9c9ba5ffb8ce6d61b23a"
+    },
+    {
+      "path": "src/vbuild/force_panel.py",
+      "bytes": 7439,
+      "sha256": "229dce1e0783454b26ec942ab7d2cd39f1c26f8100d6b7e02d1645199708228a"
+    },
+    {
+      "path": "src/vbuild/force_view.py",
+      "bytes": 2715,
+      "sha256": "5207f6732e03826138571877aa9077e432ee0e4e21189099d3debdd907e82c14"
+    },
+    {
+      "path": "src/vbuild/forces.py",
+      "bytes": 4502,
+      "sha256": "bf0d45e96c9c3a156b51b0d413126e2964137d3620c4fe56169c40a8070f4b86"
+    },
+    {
+      "path": "src/vbuild/formats.py",
+      "bytes": 10514,
+      "sha256": "32ffbb5bcd0334ceb15c768fe62208b6924c2c86b44d79e5d3767f8617c31ad9"
+    },
+    {
+      "path": "src/vbuild/ghost.py",
+      "bytes": 2586,
+      "sha256": "12114b2db3df9c3042a3d652a556acf2e8e56ef79eda4686abd4d4d9f713f34c"
+    },
+    {
+      "path": "src/vbuild/glyph.py",
+      "bytes": 2352,
+      "sha256": "e737d81b38c04731b57eabaf27d63c94d058ae52222e9f7b021264a19002a92f"
+    },
+    {
+      "path": "src/vbuild/history.py",
+      "bytes": 3913,
+      "sha256": "bd51e1e842f673411726f07355cf76e82899d532aff31e9e3922996507e85b0b"
+    },
+    {
+      "path": "src/vbuild/history_menu.py",
+      "bytes": 1721,
+      "sha256": "bb54343272e257a86b7c2d9e450c6428a755dc0bc0f656b3d5cd530d4ee4ae12"
+    },
+    {
+      "path": "src/vbuild/icons/angle.svg",
+      "bytes": 378,
+      "sha256": "e2da0c217954d81905e7ea75bd045569a26475bee2f6acc3fcd935124e2bf655"
+    },
+    {
+      "path": "src/vbuild/icons/app.ico",
+      "bytes": 54401,
+      "sha256": "29183a6d91ccc7596fe0e0d4e562caa1baeb8fbbfe5f4a9f2a53342189b0c044"
+    },
+    {
+      "path": "src/vbuild/icons/app.png",
+      "bytes": 29735,
+      "sha256": "5edb1176e1f42fbd34af38096aec8dc0aa0ad8643527727a07871c7ac512d64f"
+    },
+    {
+      "path": "src/vbuild/icons/app.svg",
+      "bytes": 1570,
+      "sha256": "3ec225692040f40c542b019263e4673e2f35ca6af3ad57e35649536c068bcf63"
+    },
+    {
+      "path": "src/vbuild/icons/bader.svg",
+      "bytes": 396,
+      "sha256": "7cae84ab210bc3a623e076d588c4b970af6ec89bed3ddef56f5b0c13e60493ef"
+    },
+    {
+      "path": "src/vbuild/icons/charge.svg",
+      "bytes": 348,
+      "sha256": "35ce661bb49ed539f60c12e8347524149b2adebf24555ab9e1b7b60357abbf58"
+    },
+    {
+      "path": "src/vbuild/icons/clipboard.svg",
+      "bytes": 402,
+      "sha256": "4f3d7b2f3056b88514754c41523e79c479aa5fe1971ff8f20cb09e0f0f744342"
+    },
+    {
+      "path": "src/vbuild/icons/contacts.svg",
+      "bytes": 312,
+      "sha256": "e1f40b6f31accc8da1318797df4a3426818738f3597697bb008ac9fac0c37428"
+    },
+    {
+      "path": "src/vbuild/icons/dihedral.svg",
+      "bytes": 334,
+      "sha256": "bae2698b2004bbb6d6f6fc0cafd077b3733cc11253c3f197faf9ab68986b90d1"
+    },
+    {
+      "path": "src/vbuild/icons/distance.svg",
+      "bytes": 372,
+      "sha256": "2fb80dba5934343d4bf9b84abc7ea1818d80dc28f6a3f7e9a4600e11b411b8ff"
+    },
+    {
+      "path": "src/vbuild/icons/edit.svg",
+      "bytes": 284,
+      "sha256": "3bed9eb9074acde9987eb1338b50def42147ba57c4a1b0a27f87384f23a4d326"
+    },
+    {
+      "path": "src/vbuild/icons/elf.svg",
+      "bytes": 360,
+      "sha256": "710323e550c21dd9c75aae976da80bbf4a6c5bb277191d27ef056cb4a1047cb1"
+    },
+    {
+      "path": "src/vbuild/icons/fixed.svg",
+      "bytes": 376,
+      "sha256": "743d27d186de98e8d51dbba6636e7aa6d628265f799fd2fcb3d114664c9bdeac"
+    },
+    {
+      "path": "src/vbuild/icons/forces.svg",
+      "bytes": 307,
+      "sha256": "b0471c88fe683a6007cf9f806e8513d9a769e7638f03f6714835f049a72801ae"
+    },
+    {
+      "path": "src/vbuild/icons/indices.svg",
+      "bytes": 318,
+      "sha256": "ffe064cf59ab74d1dff3397b08650eb32a5b83cd75fa82a46b22a71719c4473c"
+    },
+    {
+      "path": "src/vbuild/icons/md.svg",
+      "bytes": 286,
+      "sha256": "f41ed0a6c9c88e372f84e11a451e800e291dfc59520f372bddb7b48cbd4845b9"
+    },
+    {
+      "path": "src/vbuild/icons/moment.svg",
+      "bytes": 378,
+      "sha256": "1e4c55c2449c5cb7a331c582f89a605fa745911d6eb7d38e5fb7b0f01ecf7873"
+    },
+    {
+      "path": "src/vbuild/icons/neb.svg",
+      "bytes": 522,
+      "sha256": "5fdf2cef307ac198738bba50b89a3b0c5a19d87b5ee889cf19ee2db3ddb17fc7"
+    },
+    {
+      "path": "src/vbuild/icons/pages.svg",
+      "bytes": 250,
+      "sha256": "f059b5add36c804bcd23269e15c6682c7434310b9d99695c2969964c44634f3e"
+    },
+    {
+      "path": "src/vbuild/icons/palette.svg",
+      "bytes": 465,
+      "sha256": "34ca9c03810024c04a765452d2dc3166f1dd4cf7e819bc8eaabeca29e2b6ca0f"
+    },
+    {
+      "path": "src/vbuild/icons/periodic.svg",
+      "bytes": 269,
+      "sha256": "95ff762e4bc8a5321c50731374b1a082bdf00a9a36eb02d27a51ac3ab45de80a"
+    },
+    {
+      "path": "src/vbuild/icons/plane.svg",
+      "bytes": 312,
+      "sha256": "069989e368ebf69e9f792b28cf652641673baf89ada13acea4e2cc3722132887"
+    },
+    {
+      "path": "src/vbuild/icons/player.svg",
+      "bytes": 322,
+      "sha256": "0fb859f4bbd96886122274ccaac431fe69c25c1dc1bb050e15104d43ebd50ab3"
+    },
+    {
+      "path": "src/vbuild/icons/redo.svg",
+      "bytes": 173,
+      "sha256": "3b94c3b721733915faf994478f7b871a36f578c6ad84e6eea1de85680f6e9b2c"
+    },
+    {
+      "path": "src/vbuild/icons/relax.svg",
+      "bytes": 409,
+      "sha256": "60d6cde02dbde2432d5d9c8d9d18045f6d63ab02277dbab801c5e5f2dbd3be1f"
+    },
+    {
+      "path": "src/vbuild/icons/render.svg",
+      "bytes": 466,
+      "sha256": "b54b2135abff38decababd1932b0652167451e2f7b22a5d8aaea7896a406de3b"
+    },
+    {
+      "path": "src/vbuild/icons/report.svg",
+      "bytes": 277,
+      "sha256": "38ef70eb3d194586b6df1a743610ac17f6db66875ea0282cbca17d56ede253af"
+    },
+    {
+      "path": "src/vbuild/icons/rotate.svg",
+      "bytes": 224,
+      "sha256": "80455d1ac2958a447a3f23497056b47eeffd3bea20ca012c93662a3716e0e835"
+    },
+    {
+      "path": "src/vbuild/icons/select.svg",
+      "bytes": 336,
+      "sha256": "7fdc180c56564ade2aa6537feaccfe45a989f1fbd8a060a48696dc471b745058"
+    },
+    {
+      "path": "src/vbuild/icons/style_ball.svg",
+      "bytes": 288,
+      "sha256": "54edea02ea0938d0c6ee2d223b3a6083a09b94e2e0e06e0de9fe0f4f03bc3d1d"
+    },
+    {
+      "path": "src/vbuild/icons/style_poly.svg",
+      "bytes": 262,
+      "sha256": "6195a040371eb75cba928fea936b5ed2f7e6397b4bc2061a411ae0455184f1ee"
+    },
+    {
+      "path": "src/vbuild/icons/style_space.svg",
+      "bytes": 226,
+      "sha256": "5af2219bc0ad7ddf60202ced83afdde6b4d016bf1697c195eda51d0c44f76a90"
+    },
+    {
+      "path": "src/vbuild/icons/style_stick.svg",
+      "bytes": 308,
+      "sha256": "0a242459bc59012101e3b57eabd1164135d75d779cc4aa900af7587e8fa3d886"
+    },
+    {
+      "path": "src/vbuild/icons/tabs.svg",
+      "bytes": 235,
+      "sha256": "2601a8cca9d7d67ac4ff87b869cb4080c826025d599e667c96c8790e8b6212df"
+    },
+    {
+      "path": "src/vbuild/icons/translate.svg",
+      "bytes": 228,
+      "sha256": "90c00d094774c5e502bc8ea3005b0734ad377e76a88bdf904192643a618688a0"
+    },
+    {
+      "path": "src/vbuild/icons/turn_ccw.svg",
+      "bytes": 198,
+      "sha256": "15a7f8d68b79c8e3d2db896a56edae242fd39ad611c9959a10300ed624df6d9f"
+    },
+    {
+      "path": "src/vbuild/icons/turn_cw.svg",
+      "bytes": 226,
+      "sha256": "3750a195a73603325a702f81bc2be02ce2fb8633ba28fd5b0cb245d052fb1e36"
+    },
+    {
+      "path": "src/vbuild/icons/turn_down.svg",
+      "bytes": 208,
+      "sha256": "6e8530c3d52837790b3e830dbef19143627648e30759f62505c24705759875ef"
+    },
+    {
+      "path": "src/vbuild/icons/turn_left.svg",
+      "bytes": 197,
+      "sha256": "8a61070dbb2b11c9d3b2e905feb2cd2c032e21fdd2475a131d3390ff70112c02"
+    },
+    {
+      "path": "src/vbuild/icons/turn_right.svg",
+      "bytes": 196,
+      "sha256": "9154af18c9541f5c5a034f0b642c523cbe2fd479114febcf6b6e160d5947eb5b"
+    },
+    {
+      "path": "src/vbuild/icons/turn_up.svg",
+      "bytes": 167,
+      "sha256": "85010ad6e90077ca6f7247155317237c67e8e60844abfcf9855a18d9f694ab01"
+    },
+    {
+      "path": "src/vbuild/icons/undo.svg",
+      "bytes": 174,
+      "sha256": "456567be57ffa2b5930750b6bd959da3833458de9a2ee94001687b650b96afdb"
+    },
+    {
+      "path": "src/vbuild/icons/wrap.svg",
+      "bytes": 401,
+      "sha256": "a67833f32ac5cc18fdeb061f7f1963e210a7f0ab6970ba0d864fcbc692e31d7d"
+    },
+    {
+      "path": "src/vbuild/import_dialog.py",
+      "bytes": 5569,
+      "sha256": "7097c15dcc2b32f2f5c6f74752d9797c0e5487fa5a42157d126c7dc0bf65c1df"
+    },
+    {
+      "path": "src/vbuild/inputs.py",
+      "bytes": 3974,
+      "sha256": "3bbb14726fe51eee166391b41993b00bfe14f1033813154184a69b0d8d0921ff"
+    },
+    {
+      "path": "src/vbuild/keys.json",
+      "bytes": 1469,
+      "sha256": "609cde0938fde12e21ccb7b678166a51a23f977ed0f2967b101931a4e1705c57"
+    },
+    {
+      "path": "src/vbuild/keys.py",
+      "bytes": 409,
+      "sha256": "cfc942dc99374091acf9fdadf877cefaedadcd31faea79e572b545117274f35c"
+    },
+    {
+      "path": "src/vbuild/label_settings.py",
+      "bytes": 5990,
+      "sha256": "2ea5026e2ce6c85e3ac1048631a928a282d4e37cdffa2595444e58168cd1ac3f"
+    },
+    {
+      "path": "src/vbuild/label_view.py",
+      "bytes": 10344,
+      "sha256": "b95aefb273d02c13295d683fe365633d230612399fcbf3e29e14b66b9bf0372a"
+    },
+    {
+      "path": "src/vbuild/lammps.py",
+      "bytes": 9750,
+      "sha256": "243db26ff73846e5a4ff6520dc08783b8f9bb728c92fb7144b97a63dc9bcbc82"
+    },
+    {
+      "path": "src/vbuild/language.py",
+      "bytes": 558,
+      "sha256": "748e44147709d81d06e345b349ce6a4b06a6d13773bfa9bf2c496f51ef109e44"
+    },
+    {
+      "path": "src/vbuild/launch.py",
+      "bytes": 5117,
+      "sha256": "314e308173b1d2601e65e483c03b31c23abca92633e7c77b1bb72de6326b9ce7"
+    },
+    {
+      "path": "src/vbuild/look.py",
+      "bytes": 8774,
+      "sha256": "81fd82d8bfa1238d5ac637f9381430eab092969d1ba4c30b846f55afc4b0100b"
+    },
+    {
+      "path": "src/vbuild/mac.py",
+      "bytes": 2065,
+      "sha256": "41359b730f3fd78726ca031688ef6c8a265d7abfbd1dda1f04ca13c3ee1886af"
+    },
+    {
+      "path": "src/vbuild/mac_key.py",
+      "bytes": 2553,
+      "sha256": "1325d7422987476eb8ec1f2fde81365d530454ab64f75feed17483a6afcf9fd0"
+    },
+    {
+      "path": "src/vbuild/markup.py",
+      "bytes": 2444,
+      "sha256": "840e555f1643c0ecf854c1b6008a9da91fe537c59c6157b4bc3cb40795902942"
+    },
+    {
+      "path": "src/vbuild/materials.py",
+      "bytes": 4983,
+      "sha256": "dfe834abe4c4b2bfc7743633c491afe594725eba805d11b7d77d0fa6ab82a135"
+    },
+    {
+      "path": "src/vbuild/md.py",
+      "bytes": 2463,
+      "sha256": "1f97b24e6df9d918e70128859ab822f3b98acf90469559e4f27b04f4aba6102e"
+    },
+    {
+      "path": "src/vbuild/measure.py",
+      "bytes": 4112,
+      "sha256": "425403b00d10c568488593d009d95934eb9efcfefbb70cfd755493eab91e2f79"
+    },
+    {
+      "path": "src/vbuild/mlip.py",
+      "bytes": 1632,
+      "sha256": "3007fb3e08fa177be19f96f6a45ae0fe5f77cbae1f8bd5782abf5070178c681f"
+    },
+    {
+      "path": "src/vbuild/modebar.py",
+      "bytes": 6610,
+      "sha256": "d1320a3e8b2eddc9880fbae25cb6fab40a11a0e0c594c9dadecf37a936093dbc"
+    },
+    {
+      "path": "src/vbuild/model.py",
+      "bytes": 6845,
+      "sha256": "c484ce9062805192d160fce9c1a3dedde05638f999ce6d1358ca57dac08f1e43"
+    },
+    {
+      "path": "src/vbuild/molecules.py",
+      "bytes": 13382,
+      "sha256": "f0336af760a6a6555fca1cc1e365baf48be5b36bdd50999414cbb022f2dcf136"
+    },
+    {
+      "path": "src/vbuild/moment_panel.py",
+      "bytes": 6801,
+      "sha256": "0a72ed47378c6ba83f6f378881a4340359efd96d0a9705e0480fb50d659308df"
+    },
+    {
+      "path": "src/vbuild/moment_view.py",
+      "bytes": 1789,
+      "sha256": "220dd3a4447c92abdaa0fd966040ada439436f088bc89b443fa8bb7efdf16562"
+    },
+    {
+      "path": "src/vbuild/moments.py",
+      "bytes": 9217,
+      "sha256": "116fe86e9bb0c94116b28ada2a104a2c024e438d9b2023c80db2ec937756201c"
+    },
+    {
+      "path": "src/vbuild/motion.py",
+      "bytes": 738,
+      "sha256": "29183771f362628bd9e5a5a0375b9b173cb60be9b8c2b21b9daaf2dd3c8ef763"
+    },
+    {
+      "path": "src/vbuild/mp_key.py",
+      "bytes": 1670,
+      "sha256": "19446d620eff47190a7df4d5fccd87b9ca92368f957bda8332e8b641bfee2927"
+    },
+    {
+      "path": "src/vbuild/neb.py",
+      "bytes": 28419,
+      "sha256": "5a2a04c433963da71dfda187fb8466471ef1b5113dbb41cfa2c07d247b687c20"
+    },
+    {
+      "path": "src/vbuild/neb_cache.py",
+      "bytes": 2696,
+      "sha256": "5af2053ca315c0eb0090a86e0832d50430799cbf17c2b9d58cba8ed1e755ae17"
+    },
+    {
+      "path": "src/vbuild/neb_dialog.py",
+      "bytes": 9835,
+      "sha256": "fcd5af401a095c1bf9155f25ae393d9729816d76e663096a1674c32a2bc118f2"
+    },
+    {
+      "path": "src/vbuild/neb_panel.py",
+      "bytes": 13162,
+      "sha256": "f016d745316699961a52750a8b572b30f0c4e179b0a30931c90f38aa7f613f5b"
+    },
+    {
+      "path": "src/vbuild/neb_plot.py",
+      "bytes": 22670,
+      "sha256": "db42b1d9a242292f4cfb7fce76b2bafa89c8e14431a44c5d07e1e3d6b1f89b43"
+    },
+    {
+      "path": "src/vbuild/neb_ui.py",
+      "bytes": 8674,
+      "sha256": "8efd026c77b2c0b28e3720b4a5631a4f071ee6beeb2453d750d782d1fe6906db"
+    },
+    {
+      "path": "src/vbuild/neb_view.py",
+      "bytes": 3000,
+      "sha256": "2107de7abadccbbfe563c12e38fd6f19245de2567c43db068110b20928384708"
+    },
+    {
+      "path": "src/vbuild/nep.py",
+      "bytes": 1132,
+      "sha256": "9194fd671f4f41b401de4da4ca836d0df41b96bdeece0bd976992cd32f5c9daf"
+    },
+    {
+      "path": "src/vbuild/overlay.py",
+      "bytes": 4773,
+      "sha256": "b653430cb3b941a7f0ae62d678485728e086ddf7558f5e29c6f4af02f290338f"
+    },
+    {
+      "path": "src/vbuild/palette.py",
+      "bytes": 995,
+      "sha256": "dd04ef877034c089bb9d31ea232a74607e76223f61501e2dae7f812c30f015c7"
+    },
+    {
+      "path": "src/vbuild/paste.py",
+      "bytes": 3450,
+      "sha256": "9f3d2f2adfa07d98f03b51cba01f8ef54bb201671a5bd8955e2777f2180f81b1"
+    },
+    {
+      "path": "src/vbuild/paths.py",
+      "bytes": 722,
+      "sha256": "079b989ffa12f6199ef342439a6ad1971c451aace8a5b7ba689fd69b5737fa72"
+    },
+    {
+      "path": "src/vbuild/player.py",
+      "bytes": 10201,
+      "sha256": "44c79e7219210a458e518b6de66760714272cc0bb56bf48f4142b38c30c9f019"
+    },
+    {
+      "path": "src/vbuild/poly.py",
+      "bytes": 2312,
+      "sha256": "05bc2fe988cc710d629fd606791d3d1a49d58fac52337746fa9e12503aaa61a5"
+    },
+    {
+      "path": "src/vbuild/poscar.py",
+      "bytes": 14867,
+      "sha256": "480dec5aad7134528764434a01c47d34227d5261fd5a48a752b560b6b0b739ca"
+    },
+    {
+      "path": "src/vbuild/relax.py",
+      "bytes": 3189,
+      "sha256": "72ba60b5f195c831c58d1e61ce99c29d3b13bd33ee99c164898f716422a4f651"
+    },
+    {
+      "path": "src/vbuild/relax_panel.py",
+      "bytes": 17649,
+      "sha256": "226c638b746d76225d3c1b43a1c7ea05cfcd4982b5726ba7079454e11cfbbdb6"
+    },
+    {
+      "path": "src/vbuild/relax_worker.py",
+      "bytes": 10355,
+      "sha256": "77d319f5144d38bc2b52190ee7b20aa984ef6f0b8f1f83ad0617bace105de846"
+    },
+    {
+      "path": "src/vbuild/render_panel.py",
+      "bytes": 21391,
+      "sha256": "c187861fcf7615e553dcaf3935851663beb012f863aa9eb0ab84aea8368ddda6"
+    },
+    {
+      "path": "src/vbuild/render_save.py",
+      "bytes": 7612,
+      "sha256": "e3007394588e50ebc7bc4330464a14df8cdf758d3cf98a6c211fcac083ed2f18"
+    },
+    {
+      "path": "src/vbuild/report_panel.py",
+      "bytes": 4683,
+      "sha256": "818f5b39eea84a55102907d53dd6f508d8bf23b69a71b92288ed617e2be7e407"
+    },
+    {
+      "path": "src/vbuild/reports.py",
+      "bytes": 8699,
+      "sha256": "de5efe229b8237b9d33566320d83c6da9436ac009d0983cbf629217dcb86c538"
+    },
+    {
+      "path": "src/vbuild/results.py",
+      "bytes": 9566,
+      "sha256": "c5ef27bb9f107c1da45f9cda74bf50e6f4ce4e99300c1442edd0bd4264b42bb0"
+    },
+    {
+      "path": "src/vbuild/runtime.json",
+      "bytes": 3602,
+      "sha256": "8859f6e66291c6bdf9bc84a5d3b8438ee79c53627c7ed9094ba0e36b57963b5d"
+    },
+    {
+      "path": "src/vbuild/runtime.py",
+      "bytes": 15096,
+      "sha256": "cb28bee67387b01f05529e60a01242890f0925e0cb157302ef80a1425316b3da"
+    },
+    {
+      "path": "src/vbuild/scene.py",
+      "bytes": 44412,
+      "sha256": "2278e029fc251edb6155d9ff1b827bc1fa2edb863099419449da5fd9bc24c619"
+    },
+    {
+      "path": "src/vbuild/session.py",
+      "bytes": 2102,
+      "sha256": "109bd9dec1658c2d4f9123e6c0465890ba0dcbf0a46875cf4e46220e4e150536"
+    },
+    {
+      "path": "src/vbuild/settings.json",
+      "bytes": 332,
+      "sha256": "59a6465007421366ddc44b461095657136b691de75e612867a8ca6e00d3fccad"
+    },
+    {
+      "path": "src/vbuild/shortcuts.py",
+      "bytes": 3293,
+      "sha256": "4155f9a71cbe7b9fa86a8b2041fe9696e5efde80c0f77169a78c70c45bc75dd1"
+    },
+    {
+      "path": "src/vbuild/slice_panel.py",
+      "bytes": 5582,
+      "sha256": "183d74bf5e97e942f45e31f612134c1a39b53e2f0e7a2e04911081f92c6185fd"
+    },
+    {
+      "path": "src/vbuild/smiles.py",
+      "bytes": 2007,
+      "sha256": "8ef6326497be476b42a0febca955cd333bc953dc50f88bf57e8c2f73ce592230"
+    },
+    {
+      "path": "src/vbuild/smiles_dialog.py",
+      "bytes": 4729,
+      "sha256": "4f7e2573c71d87d661137981b268b3b2367ee5ccaa54c89c6b99fbb578666df3"
+    },
+    {
+      "path": "src/vbuild/source.py",
+      "bytes": 986,
+      "sha256": "5c97bc9e771308cf4054e58e17e0f1f2c119b53a3a57f6f2db3d476c326caf13"
+    },
+    {
+      "path": "src/vbuild/standard.py",
+      "bytes": 1625,
+      "sha256": "cfb485662932229fc3c3075e54f37ef88a2afcfdcb09a387786c452a4743646a"
+    },
+    {
+      "path": "src/vbuild/style_panel.py",
+      "bytes": 1399,
+      "sha256": "af0ed4b83b4f684f614aa2626412d6fb89082a3e33873339a3a4d6df4e47252b"
+    },
+    {
+      "path": "src/vbuild/styles.py",
+      "bytes": 2001,
+      "sha256": "22ce1df95bf9a47a61380b78df56f0f281b1ed70d147edda465c3985cd278a65"
+    },
+    {
+      "path": "src/vbuild/surface.py",
+      "bytes": 3971,
+      "sha256": "3531afe69096d95b83bdc34be77dee95bee39e7e1e674ae97ff0489fb45d377d"
+    },
+    {
+      "path": "src/vbuild/tabs.py",
+      "bytes": 4722,
+      "sha256": "7acbb81842d256102d1bb043d1a0a3361fa53677e85c8bafcb2d6048bab60d63"
+    },
+    {
+      "path": "src/vbuild/thermal.py",
+      "bytes": 2350,
+      "sha256": "5663f2f6dc5024644f6f9f9f63afd67721d2114ffe62926576ad1765b1a4018d"
+    },
+    {
+      "path": "src/vbuild/trajectory.py",
+      "bytes": 5956,
+      "sha256": "d9725e37a5083a9aef698109cb2a52ae078ad139f4eb0f692c415fdf06590cb1"
+    },
+    {
+      "path": "src/vbuild/view.py",
+      "bytes": 1160,
+      "sha256": "d720112e20e4f9ea03fb1b9c48080837789639d58120243fa2d651c5b1618c04"
+    },
+    {
+      "path": "src/vbuild/visual.py",
+      "bytes": 14735,
+      "sha256": "b02fe892ed4b725ed48ba85cd9023ddef11d889d2a4a3b052f17cae46cd9b276"
+    },
+    {
+      "path": "src/vbuild/volume.py",
+      "bytes": 6916,
+      "sha256": "13df7f049370492bedd114b7ceb1a12ac57b767844edca53f63503218505ea78"
+    },
+    {
+      "path": "src/vbuild/volume_panel.py",
+      "bytes": 12220,
+      "sha256": "76d4dc5cf7e51c3cd1dc35f162aa39c666ef6bb418f5a3b492f0991b1ef7f16f"
+    },
+    {
+      "path": "src/vbuild/volume_view.py",
+      "bytes": 3619,
+      "sha256": "1da88c1857d4517c5d3315e0314d828fcb6b333a632a0af9b0b626607a728d91"
+    },
+    {
+      "path": "src/vbuild/wall_view.py",
+      "bytes": 3313,
+      "sha256": "e7b8dab75724ae5b6526117353eff32b072f53036761705ad86fc71a677eee09"
+    },
+    {
+      "path": "src/vbuild/walls.py",
+      "bytes": 2213,
+      "sha256": "6ef0fc85652ce114926e8b1e9d455d902519914153fc878eb7dac13c2a9a98dc"
+    },
+    {
+      "path": "src/vbuild/warmup.py",
+      "bytes": 2482,
+      "sha256": "ea21b061cc87bf24c141d21023d6164cc122da7181885b7100f0c890b9fcd961"
+    },
+    {
+      "path": "src/vbuild/water.py",
+      "bytes": 6428,
+      "sha256": "27a2fedaf68ef714c2c44890c19b8532e00af80b39ed811bee98eadb6f906d94"
+    },
+    {
+      "path": "src/vbuild/window.py",
+      "bytes": 165514,
+      "sha256": "96d7e78c056d2ad576641beb06be1f4b78c3eac0429de5786b68b5f3ebb203b7"
+    },
+    {
+      "path": "src/vbuild/wrap.py",
+      "bytes": 2856,
+      "sha256": "6727fa157084522f8258c7cb4d058f0f8de956d5b81573bdb425094949c81709"
+    },
+    {
+      "path": "src/vbuild/writing.py",
+      "bytes": 4830,
+      "sha256": "5e2d0dc354d0889dd600355abc9e37f2d4d44f8af6361860dc0f89212f1e28d8"
+    },
+    {
+      "path": "tools/check.py",
+      "bytes": 1621,
+      "sha256": "4ea770ec8e6b6592c0ba7d4c7b6f23efbb96f1838beb88fdc14999b20ce55ad4"
+    },
+    {
+      "path": "tools/launch.cs",
+      "bytes": 9440,
+      "sha256": "f19bb2be9e4986c7c0a8b91fd449d6290ffba2ccd141ff9a85402393d163404b"
+    },
+    {
+      "path": "tools/launch.ps1",
+      "bytes": 953,
+      "sha256": "7c60756f79b6b0a256cb67c559469aef28118d9a6956bc9e7ea0b638534154d5"
+    }
+  ]
+}

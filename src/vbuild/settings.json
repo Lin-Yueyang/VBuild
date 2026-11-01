@@ -1,0 +1,16 @@
+{
+  "move_step": 0.1,
+  "index_font": 20,
+  "bond_scale": 1.15,
+  "bond_radius": 0.12,
+  "view_style": "Default",
+  "contact_factor": 0.30,
+  "rotation_step": 10,
+  "charge_level_step": 0.01,
+  "bond_ranges": {},
+  "clipboard_limit": 5,
+  "move_ghost": true,
+  "ghost_opacity": 0.20,
+  "move_decimals": 2,
+  "measure_decimals": 2
+}
