@@ -112,6 +112,7 @@ class Window(QMainWindow):
         self.history = History()
         self.sessions: list[Session] = []
         self.current_index = -1
+        self.pending_update = None
         self.loaders = {}
         self.closing = False
         self.preload_started = False
@@ -428,6 +429,8 @@ class Window(QMainWindow):
         menu = self.menuBar().addMenu("设置")
         for index, title in enumerate(SETTINGS_GROUPS):
             menu.addAction(title, lambda _checked=False, page=index: self.settings_dialog(page))
+        menu.addSeparator()
+        menu.addAction('检查更新', self.show_updates)
         toolbar = QToolBar("视角", self)
         toolbar.setObjectName("view_controls")
         toolbar.setMovable(False)
@@ -2280,6 +2283,16 @@ class Window(QMainWindow):
             QTimer.singleShot(0, self.show_environment)
         manage.clicked.connect(manage_environment)
         environment_layout.addWidget(manage)
+        updates = QPushButton('检查更新')
+        updates.setObjectName('check_software_updates')
+        def manage_updates():
+            if not shortcuts.validate():
+                groups.setCurrentWidget(shortcuts)
+                return
+            dialog.accept()
+            QTimer.singleShot(0, self.show_updates)
+        updates.clicked.connect(manage_updates)
+        environment_layout.addWidget(updates)
         environment_layout.addStretch()
         groups.addTab(environment, SETTINGS_GROUPS[5])
         groups.setCurrentIndex(page)
@@ -2450,6 +2463,22 @@ class Window(QMainWindow):
         for controller in (self.relaxer, self.forcer):
             controller.gpu, controller.cpu = '检测中', '检测中'
             controller.detect()
+
+    def show_updates(self):
+        from .update_dialog import UpdateDialog
+        dialog = UpdateDialog(self)
+        if dialog.exec() != QDialog.DialogCode.Accepted or dialog.install_stage is None:
+            return
+        from .update import prepare_installer
+        import os
+        try:
+            self.pending_update = prepare_installer(dialog.install_stage, ROOT, os.getpid())
+        except (OSError, ValueError, KeyError) as error:
+            QMessageBox.critical(self, '无法安装更新', str(error))
+            return
+        self.close()
+        if not self.closing:
+            self.pending_update = None
 
     def move_atoms(self, indices: list[int], delta: np.ndarray):
         original = self.document.structure.positions[indices].copy()
@@ -3238,6 +3267,17 @@ class Window(QMainWindow):
             return
         self.settings["geometry"] = bytes(self.window().saveGeometry().toBase64()).decode("ascii")
         self.persist_settings()
+        if self.pending_update is not None:
+            import subprocess
+            from .runtime import NO_WINDOW, process_env
+            try:
+                subprocess.Popen(self.pending_update, cwd=ROOT, env=process_env(self.pending_update[0]), creationflags=NO_WINDOW)
+            except OSError as error:
+                self.pending_update, self.closing = None, False
+                QMessageBox.critical(self, '无法启动更新', str(error))
+                event.ignore()
+                return
+            self.pending_update = None
         self.clipboard.changed.disconnect(self.clipboard_changed)
         for session in self.sessions:
             if session.trajectory is not None and session.trajectory.kind == "neb":

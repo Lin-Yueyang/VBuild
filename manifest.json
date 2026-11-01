@@ -1,7 +1,7 @@
 {
-  "version": "0.3.36",
+  "version": "0.3.38",
   "platform": "Windows lightweight",
-  "bytes": 1173109,
+  "bytes": 1199119,
   "files": [
     {
       "path": ".gitattributes",
@@ -20,18 +20,18 @@
     },
     {
       "path": "README.md",
-      "bytes": 1594,
-      "sha256": "2a852fac0bcf487433f48fd04d907dcb5a1c5a5abee5de5f402fad44a2a57710"
+      "bytes": 1753,
+      "sha256": "a77ae772409e6e63b503bf27f8f96f437e4559ae3fbf216e32e787fa658ceb0f"
     },
     {
       "path": "VBuild.exe",
       "bytes": 69120,
-      "sha256": "3c7aa33aaf6b9ed0faf1596898706b883c71633f03b1872e71fbfbbaaaa2241f"
+      "sha256": "9992518e48e7f6dc98841d984560dd19f5e7401235c72fed51261d933e51b94f"
     },
     {
       "path": "docs/buttons.md",
-      "bytes": 8421,
-      "sha256": "063a758f411dbe7131eb618a3dd98f840f4f251ae351d37a0afa14b24a5eb201"
+      "bytes": 8656,
+      "sha256": "cf0fb159fe2155c48a5ebe348b1e8835072cf77628ea40fc9bc528527ae110c1"
     },
     {
       "path": "docs/grid.md",
@@ -39,9 +39,14 @@
       "sha256": "c6b7b1c9e0c47247f423c6194bb8529a54c39770337a75ecfccaed309cdc2ee0"
     },
     {
+      "path": "docs/update.md",
+      "bytes": 1396,
+      "sha256": "59a217e2fe126f98f313dcfba6b8bf8c9a586ba7b4e5dbac33c9d066b8d01961"
+    },
+    {
       "path": "docs/updates.md",
-      "bytes": 4338,
-      "sha256": "7f7624ea36c553fad92a2a2df6c141cf826cd08942093a5031ef7539f3987efa"
+      "bytes": 4514,
+      "sha256": "f4738148d7a14a7bd86cfd0a5639886f0f8ab3709f9336c762d1bd74d728ddee"
     },
     {
       "path": "gui.pyw",
@@ -51,7 +56,7 @@
     {
       "path": "pyproject.toml",
       "bytes": 854,
-      "sha256": "c39597789c2f867d95c5b61cea4e9c09d338b5a124d91ccd8ba0b4ccc98e8af9"
+      "sha256": "85fcd549749ae7ce494e8e47ecc528404f22edac369e83b40b8e6c2dd04931da"
     },
     {
       "path": "run.py",
@@ -874,6 +879,26 @@
       "sha256": "7640f1c821510a5e4c74292be76a1af2295fe3b35f5c1e87d31428b0119e3edf"
     },
     {
+      "path": "src/vbuild/update.py",
+      "bytes": 5759,
+      "sha256": "dfca7aa152839165fdfa54e0b568ec60279e9ac0c805d93773e99a2f89e17a71"
+    },
+    {
+      "path": "src/vbuild/update_apply.py",
+      "bytes": 1942,
+      "sha256": "fdcf090beb960b2c40c0bb1c986aa4d7e0f6e83fa9be0548defc39b9cf010a45"
+    },
+    {
+      "path": "src/vbuild/update_dialog.py",
+      "bytes": 7792,
+      "sha256": "2c4dc51d4320b4cce9ab3fc4a960b2de25d03ef87b6a4172d7366f06c95c7a82"
+    },
+    {
+      "path": "src/vbuild/update_files.py",
+      "bytes": 6832,
+      "sha256": "959a638093ea53927e7e080e3b4d135d4888035fec5f87aa4ea1dc0ff468331e"
+    },
+    {
       "path": "src/vbuild/view.py",
       "bytes": 1160,
       "sha256": "d720112e20e4f9ea03fb1b9c48080837789639d58120243fa2d651c5b1618c04"
@@ -920,8 +945,8 @@
     },
     {
       "path": "src/vbuild/window.py",
-      "bytes": 174142,
-      "sha256": "90ec3d1a414b376371a1a6699fca11da0e85a7d0878e3a32ffb4ec0f0b196ade"
+      "bytes": 175861,
+      "sha256": "0e2be1b38a52ee723afdb192701e82ec97dcb83b7f972326d259388fc434b501"
     },
     {
       "path": "src/vbuild/wrap.py",
