@@ -27,4 +27,3 @@
 
 - [按钮与功能](docs/buttons.md)
 - [版本记录](docs/updates.md)
-- [检查更新](docs/update.md)
