@@ -17,7 +17,7 @@ import urllib.request
 import uuid
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from vbuild.paths import ROOT, work_dir, cache_dir, models_dir
+from vbuild.paths import ROOT, work_dir, models_dir, install_cache
 from vbuild.devices import install_device, check_device
 CATALOG = json.loads(Path(__file__).with_suffix('.json').read_text(encoding='utf-8'))
 GUI = ('numpy', 'ase', 'scipy', 'PySide6', 'pyvista', 'pyvistaqt', 'vtk', 'spglib', 'matplotlib')
@@ -39,17 +39,19 @@ def supported(version, bits=64, implementation='CPython', free_threaded=False, m
 
 def info():
     packages = {}
-    for name in (*GUI, 'torch', 'mace-torch', 'nep-adapters'):
+    for name in (*GUI, 'torch', 'mace-torch', 'nep-adapters', 'deepmd-kit', 'vesin', 'vesin-torch', 'requests'):
         try:
             packages[name] = metadata.version(name)
         except metadata.PackageNotFoundError:
             pass
     bits = struct.calcsize('P') * 8
     free = bool(sysconfig_value('Py_GIL_DISABLED'))
+    deepmd_cpp = ('deepmd-kit' in packages and Path(metadata.distribution('deepmd-kit').locate_file(
+        'deepmd/lib/deepmd_op_pt.dll' if sys.platform == 'win32' else 'deepmd/lib/libdeepmd_op_pt.so')).is_file())
     return dict(python=str(console_python(sys.executable)), base=sys.base_prefix, prefix=sys.prefix, version=list(sys.version_info[:3]),
                 system=sys.platform, machine=platform.machine().lower(), macos=platform.mac_ver()[0],
                 bits=bits, implementation=platform.python_implementation(), free_threaded=free,
-                supported=supported(sys.version_info, bits, platform.python_implementation(), free), packages=packages,
+                supported=supported(sys.version_info, bits, platform.python_implementation(), free), packages=packages, deepmd_cpp=deepmd_cpp,
                 gui=not version_problems(packages, CATALOG['gui_bounds']))
 
 
@@ -118,7 +120,6 @@ def remember_python(details, root=ROOT):
     path = work_dir(root) / 'python.txt'
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(details['python'] + '\n', encoding='utf-8')
-    # A newly selected application Python replaces old per-engine Python choices.
     save_state({'engines': {}}, root)
     return details
 
@@ -169,15 +170,19 @@ def run(command, root=ROOT):
         raise subprocess.CalledProcessError(code, command)
 
 
-def pip_install(python, packages, root=ROOT, index='https://pypi.org/simple'):
+def pip_command(python, root=ROOT, index='https://pypi.org/simple'):
     prefix = Path(probe(python)['prefix'])
     # Preserve long-path support when the user chooses an existing Windows venv.
     options = ['--prefix', '\\\\?\\' + str(prefix)] if sys.platform == 'win32' and (prefix / 'pyvenv.cfg').is_file() else []
-    run([python, '-B', '-m', 'pip', '--isolated', '--disable-pip-version-check', 'install',
+    return [python, '-B', '-m', 'pip', '--isolated', '--disable-pip-version-check', 'install',
          *options,
-         '--cache-dir', str(cache_dir(root).resolve() / 'pip'),
+         '--cache-dir', str(install_cache(root).resolve() / 'pip'),
          '--index-url', index, '--prefer-binary', '--only-binary=numpy,scipy,torch,nep-adapters,matscipy,h5py,orjson,pandas',
-         *packages], root)
+         '--progress-bar', 'off']
+
+
+def pip_install(python, packages, root=ROOT, index='https://pypi.org/simple'):
+    run([*pip_command(python, root, index), *packages], root)
 
 
 def gui_plan(packages):
@@ -210,8 +215,31 @@ def gpu_driver():
     return result.stdout.strip()
 
 
-def install_models(python, models, device, root=ROOT):
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+def compute_requirements(details, engines, device):
+    from packaging.requirements import Requirement
+    result = {}
+    for engine in engines:
+        for text in CATALOG[engine]:
+            requirement = Requirement(text)
+            name = requirement.name
+            compatible = (not version_problems(details['packages'], {name: CATALOG['engine_bounds'][name]})
+                          if name in CATALOG['engine_bounds'] else
+                          name in details['packages'] and details['packages'][name] in requirement.specifier)
+            extras = '[' + ','.join(sorted(requirement.extras)) + ']' if requirement.extras else ''
+            result[name] = name + extras + '==' + details['packages'][name] if compatible else text
+    if any(engine in ('mace', 'deepmd') for engine in engines):
+        current = details['packages'].get('torch', '')
+        compatible = not version_problems(details['packages'], {'torch': CATALOG['engine_bounds']['torch']})
+        if compatible and (device != 'cuda' or '+cu' in current):
+            result['torch'] = 'torch==' + current
+        else:
+            suffix = '+' + CATALOG['torch_indexes'][device].rsplit('/', 1)[-1] if device == 'cuda' else '+cpu' if details.get('system') != 'darwin' else ''
+            result['torch'] = 'torch==' + CATALOG['torch'] + suffix
+    return list(result.values())
+
+
+def plan_models(python, models, device, root=ROOT):
+    from vbuild import dependencies
     from vbuild.mlip import MODELS
     target = console_python(python)
     details = probe(target)
@@ -221,23 +249,41 @@ def install_models(python, models, device, root=ROOT):
         raise ValueError('请勾选模型。')
     if details.get('system') == 'darwin' and details.get('machine') != 'arm64' and any(MODELS[name].engine == 'mace' for name in models):
         raise ValueError('此 MACE 版本需要 Apple Silicon 原生 arm64 Python；Intel Mac 可使用建模和 NEP CPU。')
-    for model in models:
-        check_device(MODELS[model].engine, install_device(MODELS[model].engine, device))
     if device == 'cuda':
         print('NVIDIA 驱动：' + gpu_driver(), flush=True)
-    for model in models:
-        download(model, root)
-    for engine in dict.fromkeys(MODELS[model].engine for model in models):
-        required = ('numpy', 'ase', 'scipy', 'nep-adapters') if engine == 'nep' else ('numpy', 'ase', 'scipy', 'mace-torch')
-        if engine == 'mace' and (version_problems(details['packages'], {'torch': CATALOG['engine_bounds']['torch']})
-                                 or device == 'cuda' and '+cu' not in details['packages'].get('torch', '')):
-            index = 'https://pypi.org/simple' if details.get('system') == 'darwin' else CATALOG['torch_indexes'][device]
-            build = '+' + index.rsplit('/', 1)[-1] if device == 'cuda' else ''
-            pip_install(target, ['torch==' + CATALOG['torch'] + build], root, index)
-        if version_problems(details['packages'], {name: CATALOG['engine_bounds'][name] for name in required}):
-            pip_install(target, CATALOG[engine], root)
-    run([target, '-B', '-m', 'pip', 'check'], root)
-    return [bind_engine(target, model, install_device(MODELS[model].engine, device), root) for model in models]
+    engines = tuple(dict.fromkeys(MODELS[name].engine for name in models))
+    for engine in engines:
+        check_device(engine, install_device(engine, device))
+    requirements = compute_requirements(details, engines, device)
+    index = CATALOG['torch_indexes'][device] if device in ('cpu', 'cuda') and any(engine in ('mace', 'deepmd') for engine in engines) else None
+    plan = dependencies.prepare(target, requirements, root, index)
+    plan['models'] = models
+    plan['notices'] = (['DPA4C 将使用纯 PyTorch；现有 DeePMD 编译扩展会移到备份，可能影响其他依赖该扩展的 DeePMD 模型。']
+                       if 'deepmd' in engines and details.get('deepmd_cpp', False) else [])
+    return dict(models=models, device=device, jobs=[plan])
+
+
+def install_models(python, models, device, root=ROOT, *, plan=None, approved=False):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from vbuild.mlip import MODELS
+    from vbuild import dependencies
+    plan = plan_models(python, models, device, root) if plan is None else plan
+    if plan['models'] != models or plan['device'] != device or console_python(plan['jobs'][0]['python']) != console_python(python):
+        raise ValueError('Python 或模型选择已变化，请重新检查依赖。')
+    changes = any(item['current'] is not None for job in plan['jobs'] for item in job['changes'])
+    if (changes or any(job.get('notices') for job in plan['jobs'])) and not approved:
+        raise PermissionError('需要先确认依赖版本变更。')
+    result = []
+    for job in plan['jobs']:
+        dependencies.apply(job, root, approved)
+        if any(MODELS[name].engine == 'deepmd' for name in job['models']):
+            run([job['python'], '-B', str(Path(__file__).with_name('dpa_setup.py')), '--shared'], root)
+        for model in job['models']:
+            download(model, root)
+            result.append(bind_engine(job['python'], model, install_device(MODELS[model].engine, device), root))
+            if MODELS[model].engine == 'deepmd' and device == 'cuda':
+                bind_engine(job['python'], model, 'cpu', root)
+    return result
 
 
 def bind_engine(target, model, device, root=ROOT):
@@ -248,7 +294,9 @@ def bind_engine(target, model, device, root=ROOT):
     details = probe(target)
     if not details['supported']:
         raise ValueError('计算 Python 需要 3.11–3.13、64 位常规 CPython。')
-    required = ('numpy', 'ase', 'scipy', 'nep-adapters') if MODELS[model].engine == 'nep' else ('numpy', 'ase', 'scipy', 'mace-torch', 'torch')
+    required = {'nep': ('numpy', 'ase', 'scipy', 'nep-adapters'),
+                'mace': ('numpy', 'ase', 'scipy', 'mace-torch', 'torch'),
+                'deepmd': ('numpy', 'ase', 'scipy', 'deepmd-kit', 'torch')}[MODELS[model].engine]
     problems = version_problems(details['packages'], {name: CATALOG['engine_bounds'][name] for name in required})
     if problems:
         raise ValueError('计算依赖缺失或版本不兼容：' + ', '.join(problems))
@@ -262,13 +310,15 @@ def bind_engine(target, model, device, root=ROOT):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('action', choices=('probe', 'gui', 'install', 'select', 'bind'))
+    parser.add_argument('action', choices=('probe', 'gui', 'plan', 'install', 'select', 'bind'))
     parser.add_argument('--root', type=Path, default=ROOT)
     parser.add_argument('--python', default=str(console_python(sys.executable)))
     parser.add_argument('--model', choices=tuple(CATALOG['models']), default='nep89')
     parser.add_argument('--models', choices=tuple(CATALOG['models']), nargs='+')
     parser.add_argument('--device', choices=('cpu', 'cuda', 'mps'), default='cpu')
     parser.add_argument('--launch-files', nargs='*', default=None)
+    parser.add_argument('--plan', type=Path)
+    parser.add_argument('--approve-changes', action='store_true')
     args = parser.parse_args()
     args.root = args.root.resolve()
     if args.action == 'probe':
@@ -296,8 +346,17 @@ def main():
                 target = target.with_name('pythonw.exe')
             subprocess.Popen([str(target), '-B', str(args.root / 'gui.pyw'), *args.launch_files],
                              cwd=args.root, env=process_env(args.python), creationflags=NO_WINDOW)
+    elif args.action == 'plan':
+        plan = plan_models(args.python, args.models or [args.model], args.device, args.root)
+        folder = install_cache(args.root) / 'plans'
+        folder.mkdir(parents=True, exist_ok=True)
+        path = folder / ('install-' + uuid.uuid4().hex[:8] + '.json')
+        path.write_text(json.dumps(plan, ensure_ascii=False, indent=2), encoding='utf-8')
+        result = dict(plan=str(path))
     elif args.action == 'install':
-        result = install_models(args.python, args.models or [args.model], args.device, args.root)
+        plan = None if args.plan is None else json.loads(args.plan.read_text(encoding='utf-8'))
+        result = install_models(args.python, args.models or [args.model], args.device, args.root,
+                                plan=plan, approved=args.approve_changes)
     elif args.action == 'bind':
         result = bind_engine(args.python, args.model, args.device, args.root)
     else:

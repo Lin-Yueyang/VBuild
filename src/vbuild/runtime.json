@@ -59,6 +59,11 @@
       "url": "https://huggingface.co/mace-foundations/mace-mh-1/resolve/95fc198fe533fd351b4b74bd0fdbdc6c10a2dddd/mace-mh-1.model",
       "sha256": "ec00a2705854622fbbd898ccfb7701072fcd674709102d009fb919c1b8cc5dde",
       "bytes": 59208715
+    },
+    "dpa4c-neo": {
+      "url": "https://huggingface.co/deepmodelingcommunity/DPA4C-OMol/resolve/2b2d3296e5401e5daac9ca9515fff0d790daf1c7/DPA4C-Neo-OMol25-100M-v20260820.pt",
+      "sha256": "fc42df87b4c81649755e33c64d7e95bc0584a353e01c8f313742b3f73aab412c",
+      "bytes": 2240892
     }
   },
   "gui_bounds": {
@@ -243,6 +248,25 @@
         0,
         0
       ]
+    ],
+    "deepmd-kit": [
+      [
+        3,
+        2,
+        0
+      ],
+      [
+        3,
+        3,
+        0
+      ]
     ]
-  }
+  },
+  "deepmd": [
+    "numpy==2.4.6",
+    "ase==3.26.0",
+    "scipy==1.16.2",
+    "deepmd-kit==3.2.0",
+    "vesin[torch]>=0.6,<0.7"
+  ]
 }

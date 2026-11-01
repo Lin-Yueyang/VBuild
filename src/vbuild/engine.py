@@ -19,12 +19,17 @@ from vbuild.paths import work_dir
 from vbuild.devices import check_device, gpu_device
 
 
-def load(model, path, device):
+def load(model, path, device, charge_spin=(0, 1)):
     item = MODELS[model]
     check_device(item.engine, device)
     if item.engine == 'nep':
         from vbuild.nep import calculator
         return calculator(path, device)
+    if item.engine == 'deepmd':
+        if device != 'cpu':
+            hardware('deepmd')
+        from vbuild.dpa import DpaCalculator
+        return DpaCalculator(path, device, charge_spin)
     import torch
     torch.set_num_threads(4)
     from mace.calculators import MACECalculator
@@ -70,12 +75,13 @@ def close_process(process, log):
 class RemoteCalculator(Calculator):
     implemented_properties = ['energy', 'forces', 'stress']
 
-    def __init__(self, python, model, path, device):
+    def __init__(self, python, model, path, device, charge_spin=(0, 1)):
         super().__init__()
         logs = work_dir() / 'log'
         logs.mkdir(parents=True, exist_ok=True)
         log = (logs / ('engine-' + model + '.log')).open('ab', buffering=0)
-        self.process = subprocess.Popen([str(python), '-B', '-u', str(Path(__file__)), 'serve', model, str(path), device],
+        self.process = subprocess.Popen([str(python), '-B', '-u', str(Path(__file__)), 'serve', model, str(path), device,
+                                         *map(str, charge_spin)],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=log, env=process_env(python), creationflags=NO_WINDOW)
         self.finalizer = weakref.finalize(self, close_process, self.process, log)
         self.lock = Lock()
@@ -102,11 +108,11 @@ class RemoteCalculator(Calculator):
         self.finalizer()
 
 
-def serve(model, path, device):
+def serve(model, path, device, charge='0', multiplicity='1'):
     reader, writer = sys.stdin.buffer, sys.stdout.buffer
     sys.stdout = sys.stderr  # Library progress is logged; only our protocol owns stdout.
     try:
-        calculator = load(model, path, device)
+        calculator = load(model, path, device, (int(charge), int(multiplicity)))
         pickle.dump({'ready': True}, writer, protocol=4)
         writer.flush()
         while True:
@@ -139,10 +145,11 @@ def main():
     elif action == 'check':
         model, path, device = args
         calculator = load(model, Path(path), device)
-        atoms = Atoms('Fe2', positions=[[0, 0, 0], [1.43, 1.43, 1.43]], cell=np.eye(3) * 5.72, pbc=True)
+        from ase.build import molecule
+        atoms = molecule('H2O') if MODELS[model].engine == 'deepmd' else Atoms('Fe2', positions=[[0, 0, 0], [1.43, 1.43, 1.43]], cell=np.eye(3) * 5.72, pbc=True)
         atoms.calc = calculator
         energy, forces = atoms.get_potential_energy(), atoms.get_forces()
-        if not np.isfinite(energy) or forces.shape != (2, 3) or not np.isfinite(forces).all():
+        if not np.isfinite(energy) or forces.shape != (len(atoms), 3) or not np.isfinite(forces).all():
             raise ValueError('安装后模型实测未返回有效的能量与力。')
         print(json.dumps({'model': model, 'device': device, 'energy': energy, 'max_force': float(np.linalg.norm(forces, axis=1).max())}))
 

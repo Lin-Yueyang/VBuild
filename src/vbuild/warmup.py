@@ -10,6 +10,7 @@ from PySide6.QtCore import QCoreApplication, QThread, Signal
 
 MODULES = (("成键邻居", "ase.neighborlist"), ("几何计算", "scipy.spatial"),
            ("分子与水构建", "vbuild.molecules"), ("切面扩胞", "vbuild.build_dialog"),
+           ('晶胞搜索', 'vbuild.recell_dialog'),
            ("结构构建", "vbuild.create_dialog"), ("碳结构", "ase.build"),
            ("ASE 优化器", "ase.optimize.fire"), ("ASE 动力学", "ase.md.langevin"),
            ("LAMMPS 结构", "ase.io.lammpsdata"), ("LAMMPS 轨迹", "ase.io.lammpsrun"),

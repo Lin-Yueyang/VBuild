@@ -3,6 +3,8 @@
   "index_font": 20,
   "bond_scale": 1.15,
   "bond_radius": 0.12,
+  "show_cell_boundary": true,
+  "show_orientation_axes": true,
   "view_style": "Default",
   "contact_factor": 0.30,
   "rotation_step": 10,

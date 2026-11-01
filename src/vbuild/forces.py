@@ -67,6 +67,12 @@ class ForceController(RelaxController):
         self.values, self.result_key = None, None
         super().loaded(calculator)
 
+    def set_charge_spin(self, charge, multiplicity, *, automatic=False):
+        self.enabled = False
+        self.values, self.result_key = None, None
+        self.timer.stop()
+        super().set_charge_spin(charge, multiplicity, automatic=automatic)
+
     def enable(self, enabled):
         self.enabled = enabled
         if not enabled:

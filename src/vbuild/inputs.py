@@ -9,6 +9,7 @@ from PySide6.QtCore import QThread, Signal
 from .formats import read_cif
 from .reports import ReportTrajectory
 from .source import open_source
+from .trajectory import is_configuration
 from .volume import grid_kind, read_volume
 
 
@@ -18,6 +19,11 @@ def input_kind(path):
         return "outcar"
     if grid_kind(path) is not None:
         return "volume"
+    with open_source(path) as stream:
+        prefix = stream.read(64 * 1024)
+    marker = next((line.strip() for line in prefix.splitlines()[7:] if line.strip()), b'')
+    if is_configuration(marker):
+        return "xdatcar"
     suffix = path.suffix.lower()
     if suffix == ".xml" or path.name.lower().startswith("vasprun.xml"):
         return "xml"

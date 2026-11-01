@@ -9,10 +9,10 @@ from PySide6.QtWidgets import (QComboBox, QDoubleSpinBox, QFileDialog, QFormLayo
                               QHBoxLayout, QLabel, QLineEdit, QPushButton,
                               QRadioButton, QStyle, QToolButton, QVBoxLayout)
 
-from .mlip import MODELS
+from .mlip import MODELS, available_models
 from .devices import gpu_device, has_gpu_backend
 from .overlay import Overlay
-from .relax_panel import LoadStatus, hardware_label
+from .relax_panel import ChargeSpin, LoadStatus, hardware_label
 
 
 class ForcePanel(Overlay):
@@ -43,6 +43,8 @@ class ForcePanel(Overlay):
         self.model.setCurrentIndex(self.model.findData(controller.model))
         self.model.currentIndexChanged.connect(self.choose_model)
         layout.addWidget(self.model)
+        self.charge_spin = ChargeSpin(controller)
+        layout.addWidget(self.charge_spin)
         row = QHBoxLayout()
         self.path = QLineEdit()
         self.path.setReadOnly(True)
@@ -127,6 +129,8 @@ class ForcePanel(Overlay):
 
     def sync(self):
         controller = self.controller
+        available_models(self.model, controller.paths)
+        self.charge_spin.sync()
         with QSignalBlocker(self.model), QSignalBlocker(self.gpu), QSignalBlocker(self.cpu):
             self.model.setCurrentIndex(self.model.findData(controller.model))
             self.gpu.setChecked(controller.device == gpu_device())

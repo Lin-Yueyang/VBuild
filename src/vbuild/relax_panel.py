@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QDoubleSpinBox, QFileDialog
                               QScrollArea, QSpinBox, QStyle, QToolButton, QVBoxLayout, QWidget)
 from .overlay import Overlay
 from .walls import Wall, Walls
-from .mlip import MODELS
+from .mlip import MODELS, available_models, default_multiplicity
 from .devices import gpu_device, has_gpu_backend
 
 
@@ -50,6 +50,34 @@ class LoadStatus(QWidget):
             painter.drawLine(10, 18, 21, 5)
 
 
+class ChargeSpin(QWidget):
+    def __init__(self, controller):
+        super().__init__()
+        self.controller = controller
+        form = QFormLayout(self)
+        form.setContentsMargins(0, 0, 0, 0)
+        form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
+        self.charge, self.multiplicity = QSpinBox(), QSpinBox()
+        self.charge.setRange(-1000, 1000)
+        self.multiplicity.setRange(1, 1000)
+        form.addRow('总电荷', self.charge)
+        form.addRow('自旋多重度', self.multiplicity)
+        for box in (self.charge, self.multiplicity):
+            box.valueChanged.connect(self.changed)
+
+    def changed(self):
+        automatic = self.sender() is self.charge and self.controller.spin_auto
+        multiplicity = default_multiplicity(self.controller.symbols, self.charge.value()) if automatic else self.multiplicity.value()
+        self.controller.set_charge_spin(self.charge.value(), multiplicity, automatic=automatic)
+
+    def sync(self):
+        self.setVisible(MODELS[self.controller.model].engine == 'deepmd')
+        self.setEnabled(not self.controller.busy)
+        with QSignalBlocker(self.charge), QSignalBlocker(self.multiplicity):
+            self.charge.setValue(self.controller.charge_spin[0])
+            self.multiplicity.setValue(self.controller.charge_spin[1])
+
+
 class RelaxPanel(Overlay):
     start_requested = Signal()
     path_changed = Signal(str)
@@ -58,7 +86,7 @@ class RelaxPanel(Overlay):
     walls_changed = Signal()
 
     def __init__(self, controller, parent):
-        super().__init__(parent)
+        super().__init__(parent, resizable=True, vertical=True)
         self.controller, self.state = controller, None
         self.fix_shortcut = 'Ctrl+F'
         self.setObjectName("relax_panel")
@@ -66,13 +94,14 @@ class RelaxPanel(Overlay):
         self.setAttribute(Qt.WidgetAttribute.WA_NoMousePropagation, True)
         self.setStyleSheet("#relax_panel { background: #f3f3f3; border: 1px solid #adb3ba; border-radius: 4px; }")
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(8, 5, 8, 5)
+        outer.setContentsMargins(8, 8, 8, 8)
         outer.setSpacing(3)
         outer.addWidget(self.grip)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.Shape.NoFrame)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.scroll = scroll
         self.body = QWidget()
         scroll.setWidget(self.body)
         outer.addWidget(scroll)
@@ -80,14 +109,19 @@ class RelaxPanel(Overlay):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
         self.model = QComboBox()
+        self.model.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+        self.model.setMinimumContentsLength(16)
         for name, model in MODELS.items():
             self.model.addItem(model.label, name)
             self.model.setItemData(self.model.count() - 1, model.tooltip, Qt.ItemDataRole.ToolTipRole)
         self.model.setCurrentIndex(self.model.findData(controller.model))
         self.model.currentIndexChanged.connect(self.select_model)
         layout.addWidget(self.model)
+        self.charge_spin = ChargeSpin(controller)
+        layout.addWidget(self.charge_spin)
         row = QHBoxLayout()
         self.path = QLineEdit(str(controller.path))
+        self.path.setMinimumWidth(0)
         self.path.setObjectName("model_path")
         self.path.setReadOnly(True)
         self.path.setToolTip(str(controller.path))
@@ -119,6 +153,8 @@ class RelaxPanel(Overlay):
         self.model_status.setWordWrap(True)
         layout.addWidget(self.model_status)
         form = QFormLayout()
+        form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
+        form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
         self.force = QDoubleSpinBox()
         self.force.setObjectName("relax_fmax")
         self.force.setRange(0.01, 100)
@@ -208,7 +244,8 @@ class RelaxPanel(Overlay):
                 self.exports[name] = button
                 row.addWidget(button)
             layout.addLayout(row)
-        self.setFixedWidth(250)
+        self.setMinimumSize(240, 150)
+        self.resize(max(270, self.body.minimumSizeHint().width() + 32), 500)
         self.hide()
 
     def select_path(self):
@@ -250,7 +287,7 @@ class RelaxPanel(Overlay):
                           + '结构导出使用原始约束。')
 
     def fit(self, bottom):
-        height = self.body.sizeHint().height() + self.grip.height() + 25
+        height = self.height() if self.manual else self.body.sizeHint().height() + self.grip.height() + 25
         self.resize(self.width(), min(height, max(120, bottom - self.y() - 8)))
 
     def populate(self, state, editable):
@@ -260,6 +297,8 @@ class RelaxPanel(Overlay):
             self.indicator.set_state(False, False)
             return
         controller = self.controller
+        available_models(self.model, controller.paths)
+        self.charge_spin.sync()
         md = state.kind == "md"
         self.grip.setText("MLIP 预平衡" if md else "MLIP 结构优化")
         for widget in (self.force, self.force_label):

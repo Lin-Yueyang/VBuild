@@ -1,7 +1,7 @@
 """Structure tabs show directory/file; crowded labels keep their final characters."""
 
-from PySide6.QtCore import QMimeData, QRect, QSize, Qt
-from PySide6.QtGui import QDrag, QPainter
+from PySide6.QtCore import QEasingCurve, QMimeData, QRect, QSize, Qt, QVariantAnimation
+from PySide6.QtGui import QColor, QDrag, QPainter, QPen
 from PySide6.QtWidgets import QApplication, QStyle, QStyleOptionTab, QTabBar
 
 STRUCTURE_MIME = "application/x-vbuild-structure"
@@ -19,6 +19,16 @@ class StructureTabs(QTabBar):
         self.double = True
         self.press = None
         self.reordering = False
+        self.destination = None
+        self.drag_image = None
+        self.drag_x = 0
+        self.offsets, self.starts, self.ends = {}, {}, {}
+        self.animation = QVariantAnimation(self)
+        self.animation.setDuration(130)
+        self.animation.setStartValue(0.)
+        self.animation.setEndValue(1.)
+        self.animation.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self.animation.valueChanged.connect(self.animate)
         self.setUsesScrollButtons(False)
         self.setElideMode(Qt.TextElideMode.ElideNone)
 
@@ -40,12 +50,34 @@ class StructureTabs(QTabBar):
             return
         point = event.position().toPoint()
         if 0 <= point.y() < self.height():
-            target = self.tabAt(point)
-            if target >= 0 and (target - index) * (point.x() - origin.x()) > 0:
-                self.moveTab(index, target)
-                self.press = (target, point)
+            if not self.reordering:
+                self.drag_image = self.grab(self.tabRect(index))
                 self.reordering = True
+                for i in range(self.count()):
+                    for side in (QTabBar.ButtonPosition.LeftSide, QTabBar.ButtonPosition.RightSide):
+                        button = self.tabButton(i, side)
+                        if button is not None:
+                            button.hide()
+            self.drag_x = max(0, min(self.width() - self.tabRect(index).width(),
+                                    self.tabRect(index).x() + point.x() - origin.x()))
+            target = self.tabAt(point)
+            if target < 0:
+                target = 0 if point.x() < self.tabRect(0).left() else self.count() - 1
+            if target != self.destination:
+                self.destination = target
+                order = [i for i in range(self.count()) if i != index]
+                order.insert(target, index)
+                self.animation.stop()
+                self.starts = self.offsets.copy()
+                x = self.tabRect(0).x()
+                self.ends = {}
+                for i in order:
+                    self.ends[i] = x - self.tabRect(i).x()
+                    x += self.tabRect(i).width()
+                self.animation.start()
+            self.update()
             return
+        self.end_drag()
         self.press = None
         from .session import Session
         source = self.tabData(index)
@@ -62,11 +94,29 @@ class StructureTabs(QTabBar):
             if self.press is not None:
                 index, _origin = self.press
                 self.press = None
-                if self.reordering or index == self.tabAt(event.position().toPoint()):
+                target = self.destination if self.reordering else index
+                dragging = self.reordering
+                self.end_drag()
+                if dragging:
+                    self.moveTab(index, target)
+                    self.setCurrentIndex(target)
+                elif index == self.tabAt(event.position().toPoint()):
                     self.setCurrentIndex(index)
             event.accept()
         else:
             super().mouseReleaseEvent(event)
+
+    def animate(self, progress):
+        self.offsets = {i: self.starts.get(i, 0) + (target - self.starts.get(i, 0)) * progress
+                        for i, target in self.ends.items()}
+        self.update()
+
+    def end_drag(self):
+        self.animation.stop()
+        self.reordering, self.destination, self.drag_image = False, None, None
+        self.offsets, self.starts, self.ends = {}, {}, {}
+        self.tabLayoutChange()
+        self.update()
 
     def tabSizeHint(self, index):
         lines = self.tabText(index).split("\n")
@@ -86,7 +136,7 @@ class StructureTabs(QTabBar):
             for side in (QTabBar.ButtonPosition.LeftSide, QTabBar.ButtonPosition.RightSide):
                 button = self.tabButton(index, side)
                 if button is not None:
-                    button.setVisible(index == self.currentIndex() or self.width()/self.count() >= 60)
+                    button.setVisible(not self.reordering and (index == self.currentIndex() or self.width()/self.count() >= 60))
 
     def set_double(self, enabled):
         self.double = enabled
@@ -96,8 +146,13 @@ class StructureTabs(QTabBar):
     def paintEvent(self, event):
         painter = QPainter(self)
         for index in range(self.count()):
+            if self.reordering and self.press is not None and index == self.press[0]:
+                continue
             option = QStyleOptionTab()
             self.initStyleOption(option, index)
+            offset = round(self.offsets.get(index, 0))
+            painter.save()
+            painter.translate(offset, 0)
             self.style().drawControl(QStyle.ControlElement.CE_TabBarTabShape, option, painter, self)
             left, right = self.tabButton(index, QTabBar.ButtonPosition.LeftSide), self.tabButton(index, QTabBar.ButtonPosition.RightSide)
             rect = self.tabRect(index).adjusted(26 if left is not None and left.isVisible() else 8, 4,
@@ -107,3 +162,12 @@ class StructureTabs(QTabBar):
             for row, text in enumerate(lines):
                 self.style().drawItemText(painter, QRect(rect.x(), rect.y()+row*height, rect.width(), height),
                     Qt.AlignmentFlag.AlignCenter, option.palette, self.isEnabled(), tail(text, self.fontMetrics(), rect.width()))
+            painter.restore()
+        if self.reordering and self.press is not None:
+            source = self.press[0]
+            slot = self.tabRect(source).translated(round(self.ends.get(source, 0)), 0)
+            painter.fillRect(slot.adjusted(1, 2, -1, -2), QColor(211, 230, 249, 150))
+            painter.setPen(QPen(QColor('#2782cd'), 3))
+            painter.drawLine(slot.topLeft(), slot.bottomLeft())
+            painter.setOpacity(.9)
+            painter.drawPixmap(self.drag_x, self.tabRect(source).y(), self.drag_image)

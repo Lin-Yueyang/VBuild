@@ -3,6 +3,7 @@
 from array import array
 from dataclasses import dataclass
 from pathlib import Path
+import re
 import time
 
 import numpy as np
@@ -11,6 +12,10 @@ from ase.data import atomic_numbers
 from .model import Structure
 from .poscar import PoscarDocument
 from .source import identity, open_source
+
+
+def is_configuration(line):
+    return re.fullmatch(rb'\s*(?:direct|cartesian)\s+configuration\s*=\s*\d+\s*', line, re.IGNORECASE) is not None
 
 
 def coordinate_lines(stream, count, stop=lambda: False):
@@ -84,7 +89,7 @@ class Trajectory:
                 while marker and not marker.strip():
                     offset = stream.tell()
                     marker = stream.readline()
-                if not marker.lower().startswith((b"direct configuration", b"cartesian configuration")):
+                if not is_configuration(marker):
                     raise ValueError("XDATCAR 缺少第一帧 configuration 标记。")
                 offsets, headers = array("Q", [offset]), array("Q", [0])
         reader = cls(path, kind, stamp, offsets, headers)
@@ -126,7 +131,7 @@ class Trajectory:
                     count = int(line)
                     if count <= 0 or not stream.readline():
                         raise ValueError("XYZ 帧的原子数量或注释行无效。")
-                elif not line.lower().startswith((b"direct configuration", b"cartesian configuration")):
+                elif not is_configuration(line):
                     header_offset = offset
                     stream.seek(offset)
                     _header, count = xdat_header(stream)

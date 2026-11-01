@@ -17,6 +17,7 @@ from .mlip import MODELS, ROOT
 from . import runtime
 from .devices import gpu_device
 from .paths import work_dir, models_dir
+from . import dependencies
 
 
 class EnvironmentDialog(QDialog):
@@ -25,6 +26,7 @@ class EnvironmentDialog(QDialog):
     def __init__(self, parent=None, *, root=ROOT):
         super().__init__(parent)
         self.root, self.action, self.output = Path(root), '', ''
+        self.pending_plan, self.approved = None, False
         self.setWindowTitle('Python 与 MLIP')
         self.resize(540, 330)
         layout = QVBoxLayout(self)
@@ -71,7 +73,7 @@ class EnvironmentDialog(QDialog):
         form.addWidget(self.gpu)
         self.install = QPushButton('下载')
         self.install.setAutoDefault(False)
-        self.install.clicked.connect(lambda: self.run('install'))
+        self.install.clicked.connect(self.check_models)
         form.addWidget(self.install)
         layout.addWidget(group)
         self.status = QLabel('')
@@ -130,6 +132,10 @@ class EnvironmentDialog(QDialog):
             self.python.setText(path)
             self.run('probe')
 
+    def check_models(self):
+        self.pending_plan, self.approved = None, False
+        self.run('plan')
+
     def confirm_gui(self):
         if self.gui_packages is None:
             self.status.setText('请先检测 Python。')
@@ -152,13 +158,13 @@ class EnvironmentDialog(QDialog):
         if self.running:
             return
         models = [key for key, box in self.models.items() if box.isChecked()]
-        if action == 'install' and not models:
+        if action in ('plan', 'install') and not models:
             self.status.setText('请勾选模型。')
             return
         self.action, self.output = action, ''
         self.gui_packages = None
         self.decoder = codecs.getincrementaldecoder('utf-8')(errors='replace')
-        self.status.setText('正在安装建模依赖…' if action == 'gui' else '正在下载…' if action == 'install' else '正在检测…')
+        self.status.setText('正在安装建模依赖…' if action == 'gui' else '正在检查依赖…' if action == 'plan' else '正在下载…' if action == 'install' else '正在检测…')
         self.log.clear()
         for widget in self.controls:
             widget.setEnabled(False)
@@ -167,8 +173,12 @@ class EnvironmentDialog(QDialog):
         self.progress.show()
         arguments = ['-B', '-u', str(Path(runtime.__file__)), 'probe' if action == 'select' else action, '--root', str(self.root),
                      '--python', self.python.text().strip()]
-        if action == 'install':
+        if action in ('plan', 'install'):
             arguments.extend(['--models', *models, '--device', gpu_device() if self.gpu.isChecked() else 'cpu'])
+        if action == 'install' and self.pending_plan is not None:
+            arguments.extend(['--plan', str(self.pending_plan)])
+        if action == 'install' and self.approved:
+            arguments.append('--approve-changes')
         environment = QProcessEnvironment()
         for name, value in runtime.process_env(sys.executable).items():
             environment.insert(name, value)
@@ -216,6 +226,21 @@ class EnvironmentDialog(QDialog):
                 except OSError as error:
                     text = 'Python 设置无法保存：' + str(error)
             self.complete(text)
+        elif self.action == 'plan':
+            item = json.loads(next(line.removeprefix('VBUILD_RESULT ') for line in self.output.splitlines() if line.startswith('VBUILD_RESULT ')))
+            self.pending_plan = Path(item['plan'])
+            plan = json.loads(self.pending_plan.read_text(encoding='utf-8'))
+            changed = any(item['current'] is not None for job in plan['jobs'] for item in job['changes']) or any(job.get('notices') for job in plan['jobs'])
+            self.complete('依赖检查完成。')
+            if changed:
+                text = dependencies.summary(plan['jobs']) + '\n\n这些变更可能影响该 Python 中的其他软件。是否继续？'
+                answer = QMessageBox.question(self, '调整已安装的依赖', text,
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+                if answer != QMessageBox.StandardButton.Yes:
+                    self.status.setText('已取消，Python 库未修改。')
+                    return
+                self.approved = True
+            QTimer.singleShot(0, lambda: self.run('install'))
         elif self.action == 'gui':
             item = json.loads(next(line.removeprefix('VBUILD_RESULT ') for line in self.output.splitlines() if line.startswith('VBUILD_RESULT ')))
             self.gui_packages = item['packages']

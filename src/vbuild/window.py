@@ -62,6 +62,9 @@ from .history_menu import HistoryMenu
 from .styles import TITLES, builtins as builtin_styles, insert as insert_style
 from .paths import work_dir, data_dir
 from .keys import bindings
+from .cell_info import composition_text
+from .grid import defaults as grid_defaults
+from .grid_panel import GridPanel
 
 ROOT = Path(__file__).resolve().parents[2]
 SETTINGS_GROUPS = ("编辑与视角", "原子与键", "电子数据", "文字", "快捷键", "Python 与 MLIP")
@@ -169,6 +172,9 @@ class Window(QMainWindow):
         self.display_panel.font_size.setValue(settings['index_font'])
         self.scene.labels.set_size(settings['index_font'])
         self.display_panel.font_changed.connect(self.set_index_font)
+        self.grid_panel = GridPanel(self.scene.plotter.interactor)
+        self.grid_panel.changed.connect(self.set_grid)
+        self.grid_panel.layout_changed.connect(self.place_panels)
         self.style_panel = StylePanel(self.scene.plotter.interactor)
         self.style_panel.chosen.connect(self.set_representation)
         self.style_panel.closed.connect(lambda: self.toggle_style(False))
@@ -230,6 +236,7 @@ class Window(QMainWindow):
         self.curve_panel.choices['opt'] = set(settings.get('opt_curve_channels', ('force', 'energy')))
         self.curve_panel.channels_changed.connect(self.save_channels)
         self.overlays = {"display": self.display_panel, "mace": self.relax_panel, "forces": self.force_panel,
+                         "grid": self.grid_panel,
                          "analysis": self.analysis, "info": self.relax_info, "style": self.style_panel,
                          **self.volume_panels}
         for name, panel in self.overlays.items():
@@ -268,6 +275,7 @@ class Window(QMainWindow):
             ("add_molecule", "添加\n分子", self.add_molecule),
             ("remove", "移除所选原子", self.remove_atoms),
             ("slab", "切面\n扩胞", lambda: self.build_dialog("slab")),
+            ('recell', '改胞', lambda: self.build_dialog('recell')),
             ("wrap", "分子归入晶胞", self.wrap_atoms),
             ("relax", "MLIP 结构优化", self.new_relax),
             ("md", "MLIP 预平衡", self.new_md),
@@ -343,6 +351,18 @@ class Window(QMainWindow):
         self.actions["show_fixed"] = fixed
         self.addAction(fixed)
         modes.addAction(fixed)
+        cell_info = QAction(QIcon(str(Path(__file__).with_name('icons') / 'cell.svg')), '显示晶胞参数', self)
+        cell_info.setCheckable(True)
+        cell_info.toggled.connect(self.toggle_cell_info)
+        self.actions['show_cell_info'] = cell_info
+        self.addAction(cell_info)
+        modes.addAction(cell_info)
+        grid = QAction(QIcon(str(Path(__file__).with_name('icons') / 'grid.svg')), '显示轴/网格', self)
+        grid.setCheckable(True)
+        grid.toggled.connect(self.toggle_grid)
+        self.actions['show_grid'] = grid
+        self.addAction(grid)
+        modes.addAction(grid)
         for name, label, icon, callback in (
                 ("show_periodic", "显示周期性", "periodic", self.toggle_periodic),
                 ("show_indices", "显示原子序号", "indices", self.toggle_indices),
@@ -395,7 +415,7 @@ class Window(QMainWindow):
         self.actions["new"].setMenu(self.new_menu)
         for title, names in (("文件", ("new", "open", "save", "export_xdatcar", "close", "quit")),
                              ("编辑", ("undo", "redo", "copy", "paste", "all", "free", "fix", "add", "remove", "wrap")),
-                             ("视图", ("reset", "style", "style_cycle", "render_controls", "show_contacts", "show_forces", "show_fixed", "show_periodic", "show_indices", "show_player", "show_info", "show_report", "show_charge", "bader", "moments", "show_elf", "next", "previous"))):
+                             ("视图", ("reset", "style", "style_cycle", "render_controls", "show_contacts", "show_forces", "show_fixed", "show_cell_info", "show_grid", "show_periodic", "show_indices", "show_player", "show_info", "show_report", "show_charge", "bader", "moments", "show_elf", "next", "previous"))):
             menu = self.menuBar().addMenu(title)
             for name in names:
                 menu.addAction(self.actions[name])
@@ -463,6 +483,9 @@ class Window(QMainWindow):
         button.setFixedSize(30, 30)
         button.setStyleSheet("QToolButton { padding: 0px; font-size: 10px; }")
         self.actions["add_molecule"].setToolTip("添加常见小分子、水层或指定数量的水")
+        toolbar.addAction(self.actions['recell'])
+        toolbar.widgetForAction(self.actions['recell']).setFixedSize(30, 30)
+        toolbar.widgetForAction(self.actions['recell']).setStyleSheet('QToolButton { padding: 0px; font-size: 11px; }')
         self.actions["clipboard"].setIcon(QIcon(str(Path(__file__).with_name("icons") / "clipboard.svg")))
         toolbar.addAction(self.actions["clipboard"])
         toolbar.widgetForAction(self.actions["clipboard"]).setFixedSize(30, 30)
@@ -543,10 +566,15 @@ class Window(QMainWindow):
 
     def register_scene(self, scene):
         scene.session = None
+        scene.axis_marker.anchor = self.settings.get('axis_position', [0., 1.]).copy()
+        scene.axis_marker.place()
+        scene.axis_moved.connect(self.save_axis_position)
         if scene is not self.single_scene:
             for name in (*MODES, *ARROWS, "style_cycle"):
                 scene.plotter.interactor.addAction(self.actions[name])
         scene.contact_factor = self.settings["contact_factor"]
+        scene.show_cell_boundary = self.settings['show_cell_boundary']
+        scene.set_orientation_axes(self.settings['show_orientation_axes'])
         scene.bond_scale, scene.bond_ranges = self.bond_scale, self.bond_ranges
         scene.set_bond_radius(self.settings["bond_radius"])
         scene.labels.set_size(self.settings["index_font"])
@@ -567,6 +595,7 @@ class Window(QMainWindow):
     def change_scene(self, scene):
         if self.scene is scene:
             return
+        self.scene.axis_marker.place()
         self.scene = scene
         for panel in (*self.overlays.values(), self.atom_panel, self.player):
             visible = not panel.isHidden()
@@ -1114,6 +1143,9 @@ class Window(QMainWindow):
         session.measurement = self.scene.measurement_snapshot()
         session.camera = self.scene.camera_snapshot()
         session.show_fixed = self.scene.show_fixed
+        session.show_cell_info = self.scene.show_cell_info
+        session.grid = deepcopy(self.scene.grid_options)
+        session.show_grid_panel = self.grid_panel.isVisible()
         session.show_contacts = self.scene.show_contacts
         session.show_forces = self.forcer.enabled
         session.show_periodic, session.periods = self.scene.show_periodic, self.scene.periods
@@ -1150,13 +1182,17 @@ class Window(QMainWindow):
             self.render_panel.populate(session.render_style, self.style_library, self.document.structure.symbols)
         self.actions[session.mode].setChecked(True)
         self.scene.show_fixed = session.show_fixed
+        self.scene.show_cell_info = session.show_cell_info
+        self.scene.grid_options = grid_defaults() | deepcopy(self.settings.get('grid_defaults', {})) | deepcopy(session.grid)
         self.scene.show_contacts = session.show_contacts
         self.scene.show_periodic, self.scene.periods = session.show_periodic, session.periods
         self.scene.show_indices, self.scene.hidden_elements = session.show_indices, session.hidden_elements.copy()
-        for name in ("show_contacts", "show_fixed", "show_periodic", "show_indices", "show_player"):
+        for name in ("show_contacts", "show_fixed", "show_cell_info", "show_periodic", "show_indices", "show_player"):
             with QSignalBlocker(self.actions[name]):
                 self.actions[name].setChecked(getattr(session, name))
         self.scene.set_structure(self.document.structure, reset=camera is None, preserve_measurement=False)
+        session.grid = deepcopy(self.scene.grid_options)
+        self.grid_panel.setVisible(session.show_grid_panel)
         self.scene.set_mode(session.mode)
         self.scene.restore_measurement(session.measurement)
         self.update_style_controls()
@@ -1179,6 +1215,8 @@ class Window(QMainWindow):
 
     def request_forces(self):
         structure = self.scene.structure
+        if structure is not None:
+            self.forcer.set_structure(structure)
         snapshot = None if structure is None or not self.forcer.enabled else replace(structure, positions=self.scene.displayed)
         values = self.forcer.request(snapshot)
         if structure is not None and (values is not None or self.scene.force_arrows.actor.GetVisibility()):
@@ -1540,6 +1578,19 @@ class Window(QMainWindow):
     def save_panel(self, name):
         self.settings.setdefault("panels", {})[name] = self.overlays[name].saved()
         self.persist_settings()
+
+    def save_axis_position(self, position):
+        self.settings['axis_position'] = position
+        self.persist_settings()
+        for scene in self.scenes():
+            scene.axis_marker.anchor = position.copy()
+            scene.axis_marker.place(scene.axis_marker.bottom)
+
+    def scenes(self):
+        scenes = [self.single_scene] + [cell.scene for page in self.comparisons for cell in page.cells if cell.scene is not None]
+        if self.clip_panel is not None:
+            scenes.append(self.clip_panel.scene)
+        return scenes
 
     def set_mode(self, mode: str):
         self.actions[mode].setChecked(True)
@@ -1910,7 +1961,7 @@ class Window(QMainWindow):
         selected = self.scene.selection.copy()
         self.scene.set_selection([])
         actors = [self.scene.stage.grid_actor, self.scene.fixed.actor, self.scene.measure_actor,
-                  self.scene.measure_labels.actor, *self.scene.walls.actors.values()]
+                  self.scene.measure_labels.actor, *self.scene.walls.actors.values(), *self.scene.coordinate_grid.actors]
         if self.scene.cell_actor is not None:
             actors.append(self.scene.cell_actor)
         visible = [actor.GetVisibility() for actor in actors]
@@ -1934,6 +1985,9 @@ class Window(QMainWindow):
 
     def place_panels(self):
         top = self.atom_panel.y() + self.atom_panel.height() + 8 if self.atom_panel.isVisible() else 12
+        if self.scene.cell_info.isVisible():
+            self.scene.cell_info.move(12, top)
+            top += self.scene.cell_info.height() + 8
         summary = self.scene.moment_summary
         if summary.isVisible():
             summary.move(12, top)
@@ -1941,6 +1995,10 @@ class Window(QMainWindow):
         self.display_panel.place(12, top)
         self.player.place()
         bottom = self.player.y() if self.player.isVisible() else self.scene.plotter.interactor.height()
+        self.scene.axis_marker.place(self.player.y() if self.player.isVisible() else None)
+        if self.grid_panel.isVisible():
+            self.grid_panel.place(12, top)
+            self.grid_panel.fit(bottom)
         for panel in self.volume_panels.values():
             if panel.isVisible():
                 panel.place(12, top)
@@ -1971,6 +2029,43 @@ class Window(QMainWindow):
         if self.render_panel is not None and self.render_panel.isVisible():
             self.render_panel.place(12, top)
             self.render_panel.fit(bottom)
+
+    def toggle_cell_info(self, visible):
+        self.scene.set_cell_info(visible)
+        if self.current_index >= 0:
+            self.sessions[self.current_index].show_cell_info = visible
+        self.place_panels()
+        self.sync_appearance()
+
+    def toggle_grid(self, visible):
+        session = self.sessions[self.current_index]
+        session.show_grid_panel = visible
+        self.grid_panel.setVisible(visible)
+        self.set_grid(self.scene.grid_options | {'show': visible})
+        self.place_panels()
+        if visible:
+            self.grid_panel.raise_()
+
+    def set_grid(self, options):
+        try:
+            self.scene.set_grid(options)
+        except ValueError as error:
+            self.grid_panel.populate(options, self.scene.structure, self.scene.period_counts())
+            self.grid_panel.message.setText(str(error))
+            with QSignalBlocker(self.actions['show_grid']):
+                self.actions['show_grid'].setChecked(self.scene.grid_options['show'])
+            return
+        session = self.sessions[self.current_index]
+        session.grid = deepcopy(options)
+        preferred_basis = self.settings.get('grid_defaults', {}).get('basis', 'cell')
+        self.settings['grid_defaults'] = deepcopy(options) | {'show': False}
+        if self.scene.structure.cell is None:
+            self.settings['grid_defaults']['basis'] = preferred_basis
+        self.persist_settings()
+        with QSignalBlocker(self.actions['show_grid']):
+            self.actions['show_grid'].setChecked(options['show'])
+        self.grid_panel.populate(options, self.scene.structure, self.scene.period_counts())
+        self.sync_appearance()
 
     def toggle_periodic(self, visible):
         self.scene.set_periodic(visible, self.scene.periods)
@@ -2014,8 +2109,7 @@ class Window(QMainWindow):
                 action.setShortcut(QKeySequence(keys[name]))
         if sys.platform == 'darwin' and keys['remove'] == 'Backspace':
             self.actions['remove'].setShortcuts([QKeySequence('Backspace'), QKeySequence('Delete')])
-        scenes = [self.single_scene] + [cell.scene for page in self.comparisons for cell in page.cells if cell.scene is not None]
-        for scene in scenes:
+        for scene in self.scenes():
             scene.molecule_modifier = getattr(Qt.KeyboardModifier, keys['molecule_modifier'] + 'Modifier')
         native = lambda name: QKeySequence(keys[name]).toString(QKeySequence.SequenceFormat.NativeText)
         self.atom_panel.edit_shortcut = native('edit')
@@ -2190,6 +2284,14 @@ class Window(QMainWindow):
         step.setSingleStep(0.01)
         step.setValue(self.move_step)
         editing.addRow("每步位移", step)
+        boundary = QCheckBox('显示周期性边界')
+        boundary.setObjectName('show_cell_boundary')
+        boundary.setChecked(self.settings['show_cell_boundary'])
+        atoms.addRow(boundary)
+        orientation = QCheckBox('显示 xyz 方向轴')
+        orientation.setObjectName('show_orientation_axes')
+        orientation.setChecked(self.settings['show_orientation_axes'])
+        atoms.addRow(orientation)
         bond = QDoubleSpinBox()
         bond.setObjectName("bond_scale")
         bond.setRange(0.1, 3)
@@ -2268,10 +2370,7 @@ class Window(QMainWindow):
                 ranges = value
                 self.bond_ranges, self.bond_scale = dict(value), bond.value()
                 self.settings.update(bond_ranges=self.bond_ranges, bond_scale=self.bond_scale)
-                scenes = [self.single_scene] + [cell.scene for page in self.comparisons for cell in page.cells if cell.scene is not None]
-                if self.clip_panel is not None:
-                    scenes.append(self.clip_panel.scene)
-                for scene in scenes:
+                for scene in self.scenes():
                     scene.bond_ranges = dict(value)
                     scene.set_bond_scale(self.bond_scale)
                 self.persist_settings()
@@ -2298,6 +2397,8 @@ class Window(QMainWindow):
             self.rotation_step, self.bond_ranges = rotation.value(), ranges
             self.update_rotation_hints()
             self.settings.update(move_step=self.move_step, bond_scale=self.bond_scale,
+                                 show_cell_boundary=boundary.isChecked(),
+                                 show_orientation_axes=orientation.isChecked(),
                                  bond_radius=radius.value(),
                                  contact_factor=contact.value(), charge_level_step=level_step.value(),
                                  rotation_step=self.rotation_step, bond_ranges=self.bond_ranges,
@@ -2308,10 +2409,9 @@ class Window(QMainWindow):
             self.settings['index_font'] = labels.values['index']['size']
             self.display_panel.font_size.setValue(self.settings['index_font'])
             self.apply_shortcuts()
-            scenes = [self.single_scene] + [cell.scene for page in self.comparisons for cell in page.cells if cell.scene is not None]
-            if self.clip_panel is not None:
-                scenes.append(self.clip_panel.scene)
-            for scene in scenes:
+            for scene in self.scenes():
+                scene.set_cell_boundary(boundary.isChecked())
+                scene.set_orientation_axes(orientation.isChecked())
                 scene.configure_labels(profiles(self.settings))
                 scene.labels.set_size(self.settings['index_font'])
                 scene.bond_ranges = dict(ranges)
@@ -2416,7 +2516,8 @@ class Window(QMainWindow):
             self.add_atom(dialog.fields.element.symbol, dialog.fields.coordinates.position)
 
     def build_dialog(self, kind):
-        if not self.feature_ready("vbuild.build_dialog", lambda: self.build_dialog(kind)):
+        module = 'vbuild.recell_dialog' if kind == 'recell' else 'vbuild.build_dialog'
+        if not self.feature_ready(module, lambda: self.build_dialog(kind)):
             return
         from .build_dialog import BuildDialog
         self.scene.cancel_gesture()
@@ -2424,7 +2525,13 @@ class Window(QMainWindow):
         structure = self.document.structure
         camera = self.scene.camera_snapshot()
         selection = self.scene.selection.copy()
-        dialog = BuildDialog(kind, structure, self)
+        if kind == 'recell':
+            from .recell_dialog import RecellDialog
+            references = [(session.path.parent.name + ' / ' + session.path.name, session.document.structure, session.path)
+                          for session in self.sessions if session.document is not self.document and session.document.structure.cell is not None]
+            dialog = RecellDialog(structure, references, self)
+        else:
+            dialog = BuildDialog(kind, structure, self)
         self.builder = (dialog, structure, camera, selection, self.scene.mode)
         self.scene.previewing = True
         self.scene.set_mode("rotate")
@@ -2437,7 +2544,8 @@ class Window(QMainWindow):
             self.scene.set_structure(result.structure)
             self.scene.restore_camera(current_camera, fit_clipping=True)
 
-        dialog.preview_requested.connect(preview)
+        if kind != 'recell':
+            dialog.preview_requested.connect(preview)
         dialog.finished.connect(self.finish_build)
         dialog.setModal(False)
         dialog.show()
@@ -2453,7 +2561,29 @@ class Window(QMainWindow):
         self.tabs.setEnabled(True)
         kind = dialog.kind
         accepted = code == QDialog.DialogCode.Accepted
-        if accepted and kind == "slab":
+        if accepted and kind == 'recell':
+            preview_camera = dialog.previews.current.scene.camera_snapshot()
+            self.scene.selection = selection
+            self.scene.set_structure(structure)
+            self.scene.restore_camera(camera)
+            self._store_current()
+            source = self.sessions[self.current_index]
+            suffix = '_unit.vasp' if dialog.output.currentData() == 'unit' else '_cell.vasp'
+            if dialog.prepared_reference is not None:
+                reference = dialog.reference.currentData()
+                document = DraftDocument(deepcopy(dialog.prepared_reference.structure))
+                path = reference.path.with_name(reference.path.stem + suffix)
+                self.sessions.append(Session(document, path, show_cell_info=source.show_cell_info))
+                self.add_session_tab()
+            result = dialog.prepared
+            document = DraftDocument(deepcopy(result.structure))
+            path = self.path.with_name(self.path.stem + suffix)
+            indices = np.flatnonzero(np.isin(result.sources, selection)).tolist()
+            self.sessions.append(Session(document, path, selection=indices, camera=preview_camera, mode=mode,
+                                         show_cell_info=source.show_cell_info, representation=source.representation,
+                                         view_style=deepcopy(source.view_style), show_bonds=source.show_bonds))
+            self.activate_document(self.add_session_tab())
+        elif accepted and kind == "slab":
             result = dialog.prepared
             snapshot = replace(self.document, structure=result.structure)
             document = PoscarDocument.from_bytes(snapshot.to_bytes())
@@ -2473,7 +2603,7 @@ class Window(QMainWindow):
             indices = np.flatnonzero(np.isin(result.sources, selection)).tolist()
             self.history.apply(self.document, lambda: result.apply(structure, fix_unmapped=dialog.fix_unmapped.isChecked()), selection=selection,
                                selection_after=lambda _value: indices,
-                               label="扩胞 / 增加真空" if dialog.extra_vacuum.value() > 0 else "扩胞")
+                               label='改胞' if kind == 'recell' else "扩胞 / 增加真空" if dialog.extra_vacuum.value() > 0 else "扩胞")
             self.scene.selection = indices
             self.scene.set_structure(structure)
             self.scene.restore_camera(preview_camera)
@@ -2484,6 +2614,10 @@ class Window(QMainWindow):
         dialog.deleteLater()
         self.refresh()
         self.scene.plotter.interactor.setFocus()
+
+        if self.waiting_water_close:
+            self.waiting_water_close = False
+            QTimer.singleShot(0, self.close)
 
     def new_relax(self):
         document = self.initial_document('opt')
@@ -2828,6 +2962,17 @@ class Window(QMainWindow):
         for name in ("show_contacts", "show_fixed", "show_periodic", "show_indices", "show_player"):
             self.actions[name].setEnabled(loaded and self.builder is None)
         self.actions["show_periodic"].setEnabled(loaded and self.document.structure.cell is not None and self.builder is None)
+        self.actions['show_cell_info'].setEnabled(loaded and self.document.structure.cell is not None)
+        with QSignalBlocker(self.actions['show_cell_info']):
+            self.actions['show_cell_info'].setChecked(loaded and self.scene.show_cell_info)
+        grid_ready = loaded and (populated or self.document.structure.cell is not None)
+        self.actions['show_grid'].setEnabled(grid_ready)
+        with QSignalBlocker(self.actions['show_grid']):
+            self.actions['show_grid'].setChecked(loaded and self.scene.grid_options['show'])
+        if grid_ready:
+            self.grid_panel.populate(self.scene.grid_options, self.document.structure, self.scene.period_counts())
+        else:
+            self.grid_panel.hide()
         if loaded:
             self.display_panel.populate(self.document.structure.symbols, self.scene.periods,
                                         self.scene.hidden_elements, self.scene.show_periodic, self.scene.show_indices)
@@ -2850,11 +2995,14 @@ class Window(QMainWindow):
         self.actions["quick_add"].setEnabled(editable and state is None)
         self.actions["add_molecule"].setEnabled(editable and state is None)
         self.actions["slab"].setEnabled(populated and editable and state is None and all(self.document.structure.pbc))
+        self.actions['recell'].setEnabled(self.actions['slab'].isEnabled())
         self.actions["wrap"].setEnabled(populated and editable and (state is None or len(state.frames) == 1)
                                        and any(self.document.structure.pbc))
         self.actions["undo"].setEnabled(editable and self.history.cursor > 0)
         self.actions["redo"].setEnabled(editable and self.history.cursor < len(self.history.entries))
         movable = editable and (state is None or free_directions(len(self.document.structure.symbols), self.document.structure.free).any())
+        if loaded:
+            self.relaxer.set_structure(self.document.structure)
         self.relax_panel.populate(state, movable)
         self.relax_panel.exports["trajectory"].setEnabled(self.actions["export_xdatcar"].isEnabled())
         self.populate_results()
@@ -2938,10 +3086,13 @@ class Window(QMainWindow):
         if self.scene.measurement_text:
             mode = label + " " + self.scene.measurement_text
         temperature = self.document.structure.temperature
-        velocity = "无导出速度" if temperature is None else f"温度 {temperature:.2f} K"
+        velocity = "" if temperature is None else f"温度 {temperature:.2f} K"
         if self.document.structure.temperature_pending:
             velocity = "Direct 速度：导出时可重新赋予温度"
-        text = f"{count} 原子 | 已选 {len(selected)} | {velocity} | {mode}"
+        parts = [composition_text(structure.symbols), f'{count} 原子', f'已选 {len(selected)}']
+        if velocity:
+            parts.append(velocity)
+        text = ' | '.join([*parts, mode])
         if len(selected) == 1:
             index = selected[0]
             flags = structure.free

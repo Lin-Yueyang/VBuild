@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (QComboBox, QHBoxLayout,
 
 from .scene import Scene
 from .tabs import STRUCTURE_MIME
+from .grid import defaults as grid_defaults
 
 LAYOUTS = {"一行两列": (1, 2), "一行三列": (1, 3), "两行两列": (2, 2)}
 
@@ -148,7 +149,7 @@ class CompareCell(QFrame):
         key = (id(source), structure.symbols, structure.positions.tobytes(),
                None if structure.cell is None else structure.cell.tobytes(), source.representation,
                None if structure.free is None else structure.free.tobytes(), source.show_bonds,
-               source.show_indices, source.show_fixed, source.show_periodic, source.periods,
+               source.show_indices, source.show_fixed, source.show_cell_info, repr(source.grid), source.show_periodic, source.periods,
                tuple(sorted(source.hidden_elements)), repr(source.render_style), repr(view_style), repr(source.render_atoms), source.render_font or window.settings["index_font"],
                repr(window.settings.get('label_styles', {})),
                source.show_contacts, window.bond_scale, repr(window.bond_ranges),
@@ -164,6 +165,8 @@ class CompareCell(QFrame):
         scene.show_periodic, scene.periods = source.show_periodic, source.periods
         scene.show_indices, scene.hidden_elements = source.show_indices, source.hidden_elements.copy()
         scene.show_fixed, scene.show_contacts = source.show_fixed, source.show_contacts
+        scene.show_cell_info = source.show_cell_info
+        scene.grid_options = grid_defaults() | deepcopy(window.settings.get('grid_defaults', {})) | deepcopy(source.grid)
         scene.labels.set_size(source.render_font or window.settings["index_font"])
         window.sync_render_atoms(source)
         scene.background = "#d5d7da" if source.relaxation is not None else None
@@ -180,6 +183,8 @@ class CompareCell(QFrame):
             scene.set_charges(source.bader.labels())
         if source.moments is not None and source.show_moments and source.moments.matches(structure):
             scene.set_moment_data(source.moments)
+        scene.cell_info.move(12, 12)
+        scene.moment_summary.move(12, 12 + (scene.cell_info.height() + 8 if scene.cell_info.isVisible() else 0))
         if run is not None:
             from .neb_view import NebView
             if not hasattr(scene, "neb_view"):

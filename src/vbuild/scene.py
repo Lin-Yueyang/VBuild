@@ -8,7 +8,7 @@ import pyvista as pv
 from ase.data import atomic_numbers
 from PySide6.QtCore import QEvent, QPoint, QRect, Signal, Qt, QTimer
 from PySide6.QtGui import QCursor
-from PySide6.QtWidgets import QRubberBand, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QLabel, QRubberBand, QVBoxLayout, QWidget
 from pyvistaqt import QtInteractor
 from vtkmodules.util.numpy_support import numpy_to_vtk
 from vtkmodules.vtkCommonCore import vtkPoints
@@ -33,6 +33,10 @@ from .force_view import ForceArrows
 from .ghost import MoveGhost
 from .moment_view import MomentSummary
 from .volume_view import VolumeView
+from .cell_info import cell_text
+from .axis_marker import AxisMarker
+from .grid import defaults as grid_defaults
+from .grid_view import CoordinateGrid
 
 
 class Scene(QWidget):
@@ -43,6 +47,7 @@ class Scene(QWidget):
     paste_requested = Signal(object)
     paste_changed = Signal()
     geometry_changed = Signal()
+    axis_moved = Signal(object)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -67,6 +72,8 @@ class Scene(QWidget):
         self.axis_hint.PickableOff()
         self.axis_hint.UseBoundsOff()
         self.plotter.renderer.axes_widget.GetRenderer().AddViewProp(self.axis_hint)
+        self.axis_marker = AxisMarker(self)
+        self.show_orientation_axes = True
         self.mode = "rotate"
         self.previewing = False
         self.selection: list[int] = []
@@ -82,6 +89,12 @@ class Scene(QWidget):
         self.moment_summary = MomentSummary(self.plotter.interactor)
         self.moment_summary.move(12, 12)
         self.moment_summary.hide()
+        self.show_cell_info = False
+        self.cell_info = QLabel(self.plotter.interactor)
+        self.cell_info.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.cell_info.setStyleSheet('background: rgba(255,255,255,215); color: black; font-size: 14px;')
+        self.cell_info.move(12, 12)
+        self.cell_info.hide()
         self.hidden_elements = set()
         self.drag = None
         self.camera_drag = None
@@ -94,6 +107,7 @@ class Scene(QWidget):
         self.measurement_text = ""
         self.rubber_band = QRubberBand(QRubberBand.Shape.Rectangle, self.plotter.interactor)
         self.cell_actor = None
+        self.show_cell_boundary = True
         self.bond_scale = 1.15
         self.bond_radius = .12
         self.bond_ranges = {}
@@ -143,6 +157,8 @@ class Scene(QWidget):
         self.contacts.actor.GetProperty().SetLineWidth(3)
         self.contacts.actor.UseBoundsOff()
         self.water_walls = WaterRange(self.plotter.renderer)
+        self.grid_options = grid_defaults()
+        self.coordinate_grid = CoordinateGrid(self.plotter)
 
         self.interactor = self.plotter.iren.interactor
         self.plotter.iren.clear_key_event_callbacks()
@@ -155,6 +171,9 @@ class Scene(QWidget):
         if watched is self.plotter.interactor and event.type() in (
                 QEvent.Type.MouseButtonPress, QEvent.Type.MouseButtonDblClick, QEvent.Type.Wheel):
             self.activated.emit()
+        if watched is self.plotter.interactor and self.axis_marker.event(event):
+            event.accept()
+            return True
         if watched is self.plotter.interactor and event.type() in (
                 QEvent.Type.FocusOut, QEvent.Type.WindowDeactivate, QEvent.Type.UngrabMouse):
             self.cancel_gesture()
@@ -210,6 +229,8 @@ class Scene(QWidget):
         self.cancel_gesture(camera=not preserve_camera_gesture)
         self.cancel_paste()
         self.structure = structure
+        if structure.cell is None:
+            self.grid_options['basis'] = 'cartesian'
         self.actor.VisibilityOn()
         self.metal_actor.VisibilityOn()
         self.displayed = structure.positions.copy()
@@ -230,7 +251,9 @@ class Scene(QWidget):
         self.plotter.render()
 
     def _update_cell(self):
+        self.set_cell_info(self.show_cell_info)
         self.update_axis_hint()
+        self.coordinate_grid.update(self.structure, self.grid_options, self.period_counts())
         if self.cell_actor is not None:
             self.plotter.remove_actor(self.cell_actor, render=False)
             self.cell_actor = None
@@ -245,7 +268,34 @@ class Scene(QWidget):
         tone = self.visual.profile["scene"]["cell_color"]
         self.cell_actor = self.plotter.add_mesh(cell, color=tone, line_width=1,
                                                lighting=False, render=False, reset_camera=False)
-        self.cell_actor.SetVisibility(self.visual.profile["scene"]["cell"])
+        self.cell_actor.SetVisibility(self.show_cell_boundary and self.visual.profile["scene"]["cell"])
+
+    def set_cell_boundary(self, visible):
+        self.show_cell_boundary = visible
+        if self.cell_actor is not None:
+            self.cell_actor.SetVisibility(visible and self.visual.profile['scene']['cell'])
+        self.plotter.render()
+
+    def set_orientation_axes(self, visible):
+        self.show_orientation_axes = visible
+        self.plotter.renderer.axes_widget.SetEnabled(visible and self.visual.profile['scene']['axes'])
+        self.plotter.render()
+
+    def set_cell_info(self, visible):
+        self.show_cell_info = visible
+        cell = None if self.structure is None else self.structure.cell
+        self.cell_info.setVisible(visible and cell is not None)
+        if visible and cell is not None:
+            text = cell_text(cell)
+            if self.cell_info.text() != text:
+                self.cell_info.setText(text)
+                self.cell_info.adjustSize()
+            self.cell_info.raise_()
+
+    def set_grid(self, options):
+        self.coordinate_grid.update(self.structure, options, self.period_counts())
+        self.grid_options = deepcopy(options)
+        self.plotter.render()
 
     def period_counts(self):
         counts = self.periods if self.show_periodic else (1, 1, 1)
@@ -284,7 +334,7 @@ class Scene(QWidget):
         self.update_contacts()
         if self.stage is None:
             self.stage = Stage(self.plotter)
-        self.stage.apply(self.visual.profile, self.images, search_cell)
+        self.stage.apply(self.visual.profile, self.images, search_cell, axes_visible=self.show_orientation_axes)
         if self.background is not None:
             self.plotter.set_background(self.background)
         if self.paste.active:
@@ -292,6 +342,8 @@ class Scene(QWidget):
             self.paste.move(self.paste.positions.mean(axis=0))
         self.force_arrows.hide()
         self._update_measurement()
+        if self.structure.cell is None:
+            self.coordinate_grid.update(self.structure, self.grid_options)
         self.geometry_changed.emit()
 
     def set_forces(self, values, threshold, scale):
@@ -417,6 +469,8 @@ class Scene(QWidget):
             return
         self.cancel_gesture(camera=False)
         self.structure = structure
+        if structure.cell is None:
+            self.grid_options['basis'] = 'cartesian'
         self.displayed = structure.positions.copy()
         self._update_points()
         if not same_cell:
@@ -425,6 +479,9 @@ class Scene(QWidget):
         self.plotter.render()
 
     def clear_structure(self):
+        self.coordinate_grid.hide()
+        self.cell_info.hide()
+        self.show_cell_info = False
         self.axis_hint.SetInput("")
         self.ghost.hide()
         for view in self.volume_views.values():

@@ -24,3 +24,9 @@ def models_dir(root=ROOT):
 
 def data_dir(root=ROOT):
     return work_dir(root) / 'data' if mac_user(root) else Path(root) / 'data'
+
+
+def install_cache(root=ROOT):
+    if Path(root).resolve() == ROOT and sys.platform == 'win32':
+        return Path.home() / 'AppData/Local/VBuild/Cache'
+    return cache_dir(root)

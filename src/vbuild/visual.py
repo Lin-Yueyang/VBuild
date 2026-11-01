@@ -272,7 +272,7 @@ class Stage:
         self.grid_actor.PickableOff()
         self.grid_actor.UseBoundsOff()
 
-    def apply(self, profile, points, cell):
+    def apply(self, profile, points, cell, *, axes_visible=True):
         renderer = self.plotter.renderer
         scene = profile["scene"]
         self.plotter.set_background(scene["background"])
@@ -288,7 +288,7 @@ class Stage:
                 light.PositionalOff()
                 light.SetIntensity(scene[name] * (0.65 if scene["lighting"] == "soft" else 1))
                 renderer.AddLight(light)
-        renderer.axes_widget.SetEnabled(scene["axes"])
+        renderer.axes_widget.SetEnabled(axes_visible and scene["axes"])
         self.plotter.camera.parallel_projection = scene["parallel"]
         self.grid_actor.SetVisibility(scene["grid"])
         if not scene["grid"]:

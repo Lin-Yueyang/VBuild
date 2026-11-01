@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
+from PySide6.QtCore import QStandardPaths, QUrl
 from PySide6.QtWidgets import QCheckBox, QComboBox, QDoubleSpinBox, QFileDialog, QGridLayout, QLabel, QSpinBox, QWidget
 
 from .language import chinese
@@ -23,6 +24,8 @@ class ExportDialog(QFileDialog):
         self.setOption(QFileDialog.Option.DontUseNativeDialog)
         self.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
         self.setFileMode(QFileDialog.FileMode.AnyFile)
+        desktop = QUrl.fromLocalFile(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DesktopLocation))
+        self.setSidebarUrls([desktop, *(url for url in self.sidebarUrls() if url != desktop)])
         for label, text in ((QFileDialog.DialogLabel.LookIn, "位置"),
                             (QFileDialog.DialogLabel.FileName, "文件名"),
                             (QFileDialog.DialogLabel.FileType, "文件类型"),
@@ -33,7 +36,7 @@ class ExportDialog(QFileDialog):
         self.preserved_mode = preserved_mode
         self.setNameFilters(list(filters))
         self.selectNameFilter(next(iter(filters)))
-        self.selectFile(str(target))
+        self.selectFile(Path(target).name)
         options = QWidget(self)
         grid = QGridLayout(options)
         self.keep = QCheckBox('保持约束')
@@ -88,7 +91,8 @@ class ExportDialog(QFileDialog):
             path = Path(files[0])
             suffix = {'vasp': '.vasp', 'xyz': '.xyz', 'cif': '.cif', 'lammps-data': '.data', 'xdatcar': '.xdatcar'}[kind]
             if path.suffix.lower() in ('.xyz', '.cif', '.data', '.lmp', '.lammps', '.vasp', '.xdatcar') and path.suffix.lower() != suffix:
-                self.selectFile(str(path.with_suffix(suffix)))
+                self.setDirectory(str(path.parent))
+                self.selectFile(path.with_suffix(suffix).name)
 
     def export_options(self):
         return ExportOptions(self.keep.isChecked(),

@@ -45,7 +45,7 @@ class Hardware(QThread):
                     gpu = status.devices[0].name
             else:
                 from .engine import hardware
-                gpu = hardware('mace')
+                gpu = hardware(MODELS[self.model].engine)
         except (ImportError, RuntimeError, OSError, subprocess.TimeoutExpired, subprocess.CalledProcessError):
             pass
         commands = {"win32": ["powershell", "-NoProfile", "-Command", "(Get-CimInstance Win32_Processor).Name"],
@@ -65,19 +65,22 @@ class LoadModel(QThread):
     ready = Signal(object)
     failed = Signal(str)
 
-    def __init__(self, path, device, parent, *, model="mp-0", head=None):
+    def __init__(self, path, device, parent, *, model="mp-0", head=None, charge_spin=(0, 1)):
         super().__init__(parent)
         self.path, self.device = path, device
         self.model = MODELS[model]
         self.head = self.model.head if head is None else head
+        self.charge_spin = charge_spin
 
     def run(self):
         nep = self.model.engine == "nep"
         external = engine_python(self.model.engine, self.device)
+        if self.model.engine == 'deepmd' and external is None:
+            external = sys.executable
         if external:
             from .engine import RemoteCalculator
             try:
-                self.ready.emit(RemoteCalculator(external, next(key for key, item in MODELS.items() if item is self.model), self.path, self.device))
+                self.ready.emit(RemoteCalculator(external, next(key for key, item in MODELS.items() if item is self.model), self.path, self.device, self.charge_spin))
             except (OSError, RuntimeError, ValueError) as error:
                 self.failed.emit(str(error))
             return
@@ -156,6 +159,8 @@ class RelaxController(QObject):
         self.gpu, self.cpu = "检测中", "检测中"
         self.calculator = None
         self.message = "模型尚未加载"
+        self.charge_spin = (0, 1)
+        self.symbols, self.spin_auto = (), True
         self.hardware = None
         self.loader = None
         self.task = None
@@ -201,11 +206,26 @@ class RelaxController(QObject):
 
     def load(self):
         self.message = "正在加载模型"
-        self.loader = LoadModel(self.path, self.device, self, model=self.model)
+        self.loader = LoadModel(self.path, self.device, self, model=self.model, charge_spin=self.charge_spin)
         self.loader.ready.connect(self.loaded)
         self.loader.failed.connect(self.failed)
         self.loader.finished.connect(self.load_finished)
         self.loader.start()
+        self.changed.emit()
+
+    def set_structure(self, structure):
+        from .mlip import default_multiplicity
+        self.symbols = tuple(structure.symbols)
+        if MODELS[self.model].engine == 'deepmd' and self.spin_auto and not self.busy:
+            multiplicity = default_multiplicity(self.symbols, self.charge_spin[0])
+            if multiplicity != self.charge_spin[1]:
+                self.set_charge_spin(self.charge_spin[0], multiplicity, automatic=True)
+
+    def set_charge_spin(self, charge, multiplicity, *, automatic=False):
+        self.spin_auto = automatic
+        self.charge_spin = (charge, multiplicity)
+        self.calculator = None
+        self.message = '模型尚未加载'
         self.changed.emit()
 
     def loaded(self, calculator):

@@ -20,6 +20,9 @@ class Session:
     measurement: tuple | None = None
     camera: object | None = None
     show_fixed: bool = False
+    show_cell_info: bool = False
+    grid: dict = field(default_factory=dict)
+    show_grid_panel: bool = False
     show_contacts: bool = False
     show_forces: bool = False
     show_periodic: bool = False
