@@ -235,6 +235,9 @@ class Window(QMainWindow):
         self.curve_panel.filter_channels()
         self.curve_panel.choices['opt'] = set(settings.get('opt_curve_channels', ('force', 'energy')))
         self.curve_panel.channels_changed.connect(self.save_channels)
+        self.curve_panel.energy_unit.setCurrentText(settings['curve_energy_unit'])
+        self.curve_panel.relative.setChecked(settings['curve_energy_relative'])
+        self.curve_panel.display_changed.connect(self.save_curve_display)
         self.overlays = {"display": self.display_panel, "mace": self.relax_panel, "forces": self.force_panel,
                          "grid": self.grid_panel,
                          "analysis": self.analysis, "info": self.relax_info, "style": self.style_panel,
@@ -1486,6 +1489,11 @@ class Window(QMainWindow):
         self.curve_panel.export.setEnabled(bool(channels) and bool(self.curve_panel.plot.frames))
         key = 'curve_channels' if self.curve_panel.plot.kind == 'md' else 'opt_curve_channels'
         self.settings[key] = channels
+        self.persist_settings()
+
+    def save_curve_display(self, unit, relative):
+        self.settings['curve_energy_unit'] = unit
+        self.settings['curve_energy_relative'] = relative
         self.persist_settings()
 
     def select_analysis(self, name):

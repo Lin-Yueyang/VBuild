@@ -14,5 +14,7 @@
   "move_ghost": true,
   "ghost_opacity": 0.20,
   "move_decimals": 2,
-  "measure_decimals": 2
+  "measure_decimals": 2,
+  "curve_energy_unit": "eV",
+  "curve_energy_relative": false
 }

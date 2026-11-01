@@ -22,6 +22,7 @@
     "spglib==2.6.0",
     "matplotlib==3.10.6"
   ],
+  "molecules": ["rdkit>=2025.9"],
   "nep": [
     "numpy==2.4.6",
     "ase==3.26.0",

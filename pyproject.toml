@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vbuild"
-version = "0.3.34"
+version = "0.3.36"
 description = "A small VASP structure editor"
 requires-python = ">=3.11,<3.14"
 dependencies = ["numpy>=2.0,<3", "ase>=3.26,<4", "scipy>=1.13,<2"]

@@ -1,6 +1,11 @@
 """An isolated molecule preview; confirmation returns a clipboard snapshot."""
 
-from PySide6.QtCore import QThread, Signal
+from importlib import invalidate_caches
+from importlib.util import find_spec
+import site
+
+from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QComboBox, QDialog, QDialogButtonBox, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QVBoxLayout,
@@ -10,7 +15,6 @@ from .model import Structure
 from .scene import Scene
 from .markup import formula_html
 from .smiles import generate
-from .launch import missing_message
 
 
 class SmilesWorker(QThread):
@@ -24,9 +28,7 @@ class SmilesWorker(QThread):
     def run(self):
         try:
             self.ready.emit(generate(self.text, self.forcefield))
-        except ImportError:
-            self.failed.emit(missing_message(["rdkit"], "molecules"))
-        except (ValueError, RuntimeError) as error:
+        except (ImportError, ValueError, RuntimeError) as error:
             self.failed.emit(str(error))
 
 
@@ -50,6 +52,7 @@ class SmilesDialog(QDialog):
         row.addWidget(self.forcefield)
         self.preview = QPushButton("预览")
         self.preview.setObjectName("smiles_preview")
+        self.preview.setAutoDefault(False)
         self.preview.clicked.connect(self.prepare)
         row.addWidget(self.preview)
         layout.addLayout(row)
@@ -68,11 +71,18 @@ class SmilesDialog(QDialog):
         self.buttons.setCenterButtons(True)
         self.confirm = self.buttons.button(QDialogButtonBox.StandardButton.Ok)
         self.confirm.setText("复制到剪贴板")
+        self.confirm.setAutoDefault(False)
+        self.confirm.setDefault(False)
         self.confirm.setEnabled(False)
         self.buttons.button(QDialogButtonBox.StandardButton.Cancel).setText("取消")
+        self.buttons.button(QDialogButtonBox.StandardButton.Cancel).setAutoDefault(False)
         self.buttons.accepted.connect(self.accept)
         self.buttons.rejected.connect(self.reject)
         layout.addWidget(self.buttons)
+        self.preview_keys = [QShortcut(QKeySequence(key), self) for key in ('Return', 'Enter')]
+        for shortcut in self.preview_keys:
+            shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+            shortcut.activated.connect(self.prepare)
 
     def changed(self, *_args):
         self.prepared = None
@@ -80,6 +90,23 @@ class SmilesDialog(QDialog):
         self.formula.setText("参数已改变，请重新预览。")
 
     def prepare(self):
+        if self.worker is not None:
+            return
+        if not self.text.text().strip():
+            self.status.setText('请输入 SMILES。')
+            return
+        if find_spec('rdkit') is None:
+            from .package_dialog import PackageDialog
+            installer = PackageDialog(self)
+            if installer.exec() != QDialog.DialogCode.Accepted:
+                self.status.setText('已取消安装。')
+                return
+            if installer.restart:
+                self.status.setText('安装完成，已有依赖已更新，请重启软件后预览。')
+                return
+            if site.ENABLE_USER_SITE:
+                site.addsitedir(site.getusersitepackages())
+            invalidate_caches()
         self.changed()
         self.worker = SmilesWorker(self.text.text(), self.forcefield.currentText(), self)
         self.worker.ready.connect(self.ready)

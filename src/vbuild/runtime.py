@@ -177,7 +177,7 @@ def pip_command(python, root=ROOT, index='https://pypi.org/simple'):
     return [python, '-B', '-m', 'pip', '--isolated', '--disable-pip-version-check', 'install',
          *options,
          '--cache-dir', str(install_cache(root).resolve() / 'pip'),
-         '--index-url', index, '--prefer-binary', '--only-binary=numpy,scipy,torch,nep-adapters,matscipy,h5py,orjson,pandas',
+         '--index-url', index, '--prefer-binary', '--only-binary=numpy,scipy,torch,nep-adapters,matscipy,h5py,orjson,pandas,rdkit',
          '--progress-bar', 'off']
 
 
@@ -202,6 +202,23 @@ def install_gui(python, root=ROOT):
     if not details['gui']:
         raise ValueError('建模依赖安装后检查未通过：' + '、'.join(version_problems(details['packages'], CATALOG['gui_bounds'])))
     return details
+
+
+def plan_feature(python, feature, root=ROOT):
+    from vbuild import dependencies
+    if not probe(python)['supported']:
+        raise ValueError('请选择 CPython 3.11–3.13 的 64 位常规版本。')
+    plan = dependencies.prepare(console_python(python), CATALOG[feature], root)
+    return plan | {'feature': feature}
+
+
+def install_feature(plan, root=ROOT, approved=False):
+    from vbuild import dependencies
+    dependencies.apply(plan, root, approved)
+    run([plan['python'], '-B', '-c',
+         'import sys; sys.path.insert(0, sys.argv[1]); from vbuild.smiles import generate; print(generate("O").formula)',
+         str(Path(__file__).resolve().parents[1])], root)
+    return dict(restart=any(item['current'] is not None for item in plan['changes']))
 
 
 def gpu_driver():
@@ -310,7 +327,7 @@ def bind_engine(target, model, device, root=ROOT):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('action', choices=('probe', 'gui', 'plan', 'install', 'select', 'bind'))
+    parser.add_argument('action', choices=('probe', 'gui', 'plan', 'install', 'select', 'bind', 'feature-plan', 'feature-install'))
     parser.add_argument('--root', type=Path, default=ROOT)
     parser.add_argument('--python', default=str(console_python(sys.executable)))
     parser.add_argument('--model', choices=tuple(CATALOG['models']), default='nep89')
@@ -319,6 +336,7 @@ def main():
     parser.add_argument('--launch-files', nargs='*', default=None)
     parser.add_argument('--plan', type=Path)
     parser.add_argument('--approve-changes', action='store_true')
+    parser.add_argument('--feature', choices=('molecules',))
     args = parser.parse_args()
     args.root = args.root.resolve()
     if args.action == 'probe':
@@ -346,6 +364,15 @@ def main():
                 target = target.with_name('pythonw.exe')
             subprocess.Popen([str(target), '-B', str(args.root / 'gui.pyw'), *args.launch_files],
                              cwd=args.root, env=process_env(args.python), creationflags=NO_WINDOW)
+    elif args.action == 'feature-plan':
+        plan = plan_feature(args.python, args.feature, args.root)
+        folder = install_cache(args.root) / 'plans'
+        folder.mkdir(parents=True, exist_ok=True)
+        path = folder / ('feature-' + uuid.uuid4().hex[:8] + '.json')
+        path.write_text(json.dumps(plan, ensure_ascii=False, indent=2), encoding='utf-8')
+        result = dict(plan=str(path))
+    elif args.action == 'feature-install':
+        result = install_feature(json.loads(args.plan.read_text(encoding='utf-8')), args.root, args.approve_changes)
     elif args.action == 'plan':
         plan = plan_models(args.python, args.models or [args.model], args.device, args.root)
         folder = install_cache(args.root) / 'plans'
