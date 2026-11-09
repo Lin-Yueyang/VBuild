@@ -1,7 +1,7 @@
 {
-  "version": "0.3.38",
+  "version": "0.3.43",
   "platform": "Windows lightweight",
-  "bytes": 1199119,
+  "bytes": 1221365,
   "files": [
     {
       "path": ".gitattributes",
@@ -20,18 +20,18 @@
     },
     {
       "path": "README.md",
-      "bytes": 1753,
-      "sha256": "a77ae772409e6e63b503bf27f8f96f437e4559ae3fbf216e32e787fa658ceb0f"
+      "bytes": 1720,
+      "sha256": "156e7160f517ac63cb7c9e86c3ae23029f722a239875e4eb3d5258c5a8af21bb"
     },
     {
       "path": "VBuild.exe",
       "bytes": 69120,
-      "sha256": "9992518e48e7f6dc98841d984560dd19f5e7401235c72fed51261d933e51b94f"
+      "sha256": "bb340dc0440d136c0aea3a789a0b53eeb93236700d95753ed74ba3674409648d"
     },
     {
       "path": "docs/buttons.md",
-      "bytes": 8656,
-      "sha256": "cf0fb159fe2155c48a5ebe348b1e8835072cf77628ea40fc9bc528527ae110c1"
+      "bytes": 9551,
+      "sha256": "8367869884736b56fa756ed88f22c04aec7c1cf4eef183d733b05d72a501152c"
     },
     {
       "path": "docs/grid.md",
@@ -39,14 +39,9 @@
       "sha256": "c6b7b1c9e0c47247f423c6194bb8529a54c39770337a75ecfccaed309cdc2ee0"
     },
     {
-      "path": "docs/update.md",
-      "bytes": 1396,
-      "sha256": "59a217e2fe126f98f313dcfba6b8bf8c9a586ba7b4e5dbac33c9d066b8d01961"
-    },
-    {
       "path": "docs/updates.md",
-      "bytes": 4514,
-      "sha256": "f4738148d7a14a7bd86cfd0a5639886f0f8ab3709f9336c762d1bd74d728ddee"
+      "bytes": 5574,
+      "sha256": "3c669dec3e3906921dd9d25aeffde2596605d0423b0bd786361e8784a8670d64"
     },
     {
       "path": "gui.pyw",
@@ -56,7 +51,7 @@
     {
       "path": "pyproject.toml",
       "bytes": 854,
-      "sha256": "85fcd549749ae7ce494e8e47ecc528404f22edac369e83b40b8e6c2dd04931da"
+      "sha256": "539e14358914d4384518cd4bafaf4518bd7ff5bab96158f4cc7368757e7f4337"
     },
     {
       "path": "run.py",
@@ -240,8 +235,13 @@
     },
     {
       "path": "src/vbuild/export_dialog.py",
-      "bytes": 5479,
-      "sha256": "747544270585a07c392d2a7e629da1f8da7d1219a5fa49ed0d8fccc076478415"
+      "bytes": 12677,
+      "sha256": "1f6250e29aedb3363c052271ab7da4869ffa4fbfa8bc3979d9d65fe73157e8f9"
+    },
+    {
+      "path": "src/vbuild/export_worker.py",
+      "bytes": 4937,
+      "sha256": "5763932c1f377309aa9eaf3e0a26e1acb200a562dcc3b54b5ac9d6bea4076844"
     },
     {
       "path": "src/vbuild/fixed.py",
@@ -265,8 +265,8 @@
     },
     {
       "path": "src/vbuild/formats.py",
-      "bytes": 10514,
-      "sha256": "32ffbb5bcd0334ceb15c768fe62208b6924c2c86b44d79e5d3767f8617c31ad9"
+      "bytes": 10543,
+      "sha256": "ee08a0e6827b1033548cb3d83431836ba0451e8f17e2baef1b736224de767b16"
     },
     {
       "path": "src/vbuild/ghost.py",
@@ -399,6 +399,21 @@
       "sha256": "1e4c55c2449c5cb7a331c582f89a605fa745911d6eb7d38e5fb7b0f01ecf7873"
     },
     {
+      "path": "src/vbuild/icons/nav_back.svg",
+      "bytes": 198,
+      "sha256": "11e5fc06f079e432ae3f04fa92cf44810e58b4a9e850dddd6e31e6d7effc06e6"
+    },
+    {
+      "path": "src/vbuild/icons/nav_forward.svg",
+      "bytes": 199,
+      "sha256": "a566aeece0e28445dc3d5d162f3320c071730146dd4e1c056ee22d4ca2c184b7"
+    },
+    {
+      "path": "src/vbuild/icons/nav_up.svg",
+      "bytes": 199,
+      "sha256": "1533c397579020cf7ddbb73f3db789806dc1d29c9722fc88413840f77635ab1e"
+    },
+    {
       "path": "src/vbuild/icons/neb.svg",
       "bytes": 522,
       "sha256": "5fdf2cef307ac198738bba50b89a3b0c5a19d87b5ee889cf19ee2db3ddb17fc7"
@@ -490,33 +505,33 @@
     },
     {
       "path": "src/vbuild/icons/turn_ccw.svg",
-      "bytes": 198,
-      "sha256": "15a7f8d68b79c8e3d2db896a56edae242fd39ad611c9959a10300ed624df6d9f"
+      "bytes": 324,
+      "sha256": "239bae29f0fc68d380000dd19f6211a54f6e59c775d7df42074c12b7cac8ef80"
     },
     {
       "path": "src/vbuild/icons/turn_cw.svg",
-      "bytes": 226,
-      "sha256": "3750a195a73603325a702f81bc2be02ce2fb8633ba28fd5b0cb245d052fb1e36"
+      "bytes": 284,
+      "sha256": "c3b6174169d1526a087978421659562a047ebf833506c712653d000392ef41e5"
     },
     {
       "path": "src/vbuild/icons/turn_down.svg",
-      "bytes": 208,
-      "sha256": "6e8530c3d52837790b3e830dbef19143627648e30759f62505c24705759875ef"
+      "bytes": 218,
+      "sha256": "f73fea5a2431c929926f597189f5d4d24af488981a7fd1222e13d0d6e4e3a91f"
     },
     {
       "path": "src/vbuild/icons/turn_left.svg",
-      "bytes": 197,
-      "sha256": "8a61070dbb2b11c9d3b2e905feb2cd2c032e21fdd2475a131d3390ff70112c02"
+      "bytes": 219,
+      "sha256": "3e21043390efb86c440f0cdaa87e5f904854f2572842fc47464f47fca6131aa9"
     },
     {
       "path": "src/vbuild/icons/turn_right.svg",
-      "bytes": 196,
-      "sha256": "9154af18c9541f5c5a034f0b642c523cbe2fd479114febcf6b6e160d5947eb5b"
+      "bytes": 218,
+      "sha256": "ed68a15ae871ec9f61b6c72488184270f8971ea6657b6ceedd8f3ff9ae6b20ad"
     },
     {
       "path": "src/vbuild/icons/turn_up.svg",
-      "bytes": 167,
-      "sha256": "85010ad6e90077ca6f7247155317237c67e8e60844abfcf9855a18d9f694ab01"
+      "bytes": 218,
+      "sha256": "56fcbc2c8053daa7c1d264973315dc1438638cf5978158b75d90b22005152027"
     },
     {
       "path": "src/vbuild/icons/undo.svg",
@@ -560,8 +575,8 @@
     },
     {
       "path": "src/vbuild/lammps.py",
-      "bytes": 9750,
-      "sha256": "243db26ff73846e5a4ff6520dc08783b8f9bb728c92fb7144b97a63dc9bcbc82"
+      "bytes": 10462,
+      "sha256": "560bae2e5a48ed7ff8a21c84f8e478778bfe4d627f48147cbc69c6c088e39c72"
     },
     {
       "path": "src/vbuild/language.py",
@@ -605,8 +620,8 @@
     },
     {
       "path": "src/vbuild/md.py",
-      "bytes": 2463,
-      "sha256": "1f97b24e6df9d918e70128859ab822f3b98acf90469559e4f27b04f4aba6102e"
+      "bytes": 3159,
+      "sha256": "4f3b22a34975fd1d84aff8dc8ae2074c3f9e5f67ccc22de295893a2093f9e448"
     },
     {
       "path": "src/vbuild/measure.py",
@@ -755,18 +770,18 @@
     },
     {
       "path": "src/vbuild/relax.py",
-      "bytes": 3189,
-      "sha256": "72ba60b5f195c831c58d1e61ce99c29d3b13bd33ee99c164898f716422a4f651"
+      "bytes": 5083,
+      "sha256": "3ba8561cbf37ad50bc2b264fdaa4e0cf967c14b8dd1b702aa69f2f62fbfe1a1c"
     },
     {
       "path": "src/vbuild/relax_panel.py",
-      "bytes": 19717,
-      "sha256": "c98ee3d84545b3143935981fb37b15f65a8822399916e3b24e82f46cb67015b4"
+      "bytes": 22829,
+      "sha256": "ce77ecd997749eeb1a9e3b83168f2fa77e058d332cb1dd15f77d979565c68d57"
     },
     {
       "path": "src/vbuild/relax_worker.py",
-      "bytes": 11372,
-      "sha256": "f57835368d0100360e353c7e9503dcfb25651ee4b0bad767d9da2ef1575dbffb"
+      "bytes": 11603,
+      "sha256": "0159b26842f0357a5b370c4811304cb70856eadefa5bac830a7a8b64727637f2"
     },
     {
       "path": "src/vbuild/render_panel.py",
@@ -785,8 +800,8 @@
     },
     {
       "path": "src/vbuild/reports.py",
-      "bytes": 8699,
-      "sha256": "de5efe229b8237b9d33566320d83c6da9436ac009d0983cbf629217dcb86c538"
+      "bytes": 8940,
+      "sha256": "c38c047f8fef12f4c6d4a271134d8ef9c008e7b0a2c5020356bcebc3ecd7e84a"
     },
     {
       "path": "src/vbuild/results.py",
@@ -805,8 +820,8 @@
     },
     {
       "path": "src/vbuild/scene.py",
-      "bytes": 47040,
-      "sha256": "1fd9e326c70cfd702ddef9c5b5cd6172f9124bbd88663f3e0129fb7f70b7b5e8"
+      "bytes": 47054,
+      "sha256": "c4c5976536e6137c93c637aebeaee468bab121c4efd3b4d46e4737ecc401202a"
     },
     {
       "path": "src/vbuild/session.py",
@@ -900,8 +915,8 @@
     },
     {
       "path": "src/vbuild/view.py",
-      "bytes": 1160,
-      "sha256": "d720112e20e4f9ea03fb1b9c48080837789639d58120243fa2d651c5b1618c04"
+      "bytes": 1284,
+      "sha256": "08f5719ddaeb1941278723dc6e006013ed9a9fa1e2b3abd31d04619f4b5de4ab"
     },
     {
       "path": "src/vbuild/visual.py",
@@ -945,8 +960,8 @@
     },
     {
       "path": "src/vbuild/window.py",
-      "bytes": 175861,
-      "sha256": "0e2be1b38a52ee723afdb192701e82ec97dcb83b7f972326d259388fc434b501"
+      "bytes": 177508,
+      "sha256": "8b82fdc6cb5cb23ef93d8962ff808ee99139ab4546fb66009ea36c0a9e1f3a18"
     },
     {
       "path": "src/vbuild/wrap.py",

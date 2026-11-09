@@ -25,6 +25,27 @@ class Step:
 
 
 @dataclass
+class Evolution:
+    dynamics: object | None = None
+    key: tuple | None = None
+    offset: int = 0
+    time_offset: float = 0
+    last: Step | None = None
+
+    def reuse(self, structure, calculator, *parameters):
+        key = (structure.symbols, None if structure.cell is None else structure.cell.tobytes(),
+               structure.pbc, None if structure.free is None else structure.free.tobytes(), id(calculator), *parameters)
+        if self.last is not None and tuple(self.dynamics.atoms.get_chemical_symbols()) != structure.symbols:
+            raise ValueError("原子种类或数量已改变，请重新开始计算。")
+        same = key == self.key and np.array_equal(self.dynamics.atoms.positions, structure.positions)
+        if not same:
+            self.key = key
+            self.offset = 0 if self.last is None else self.last.number
+            self.time_offset = 0 if self.last is None else self.last.time_fs
+        return same
+
+
+@dataclass
 class Relaxation:
     frames: list[Step] = field(default_factory=list)
     fmax: float = 0.05
@@ -37,33 +58,52 @@ class Relaxation:
     timestep: float = 1
     friction: float = 0.01
     walls: Walls = field(default_factory=Walls)
+    evolution: Evolution = field(default_factory=Evolution)
+    run_step: int = 0
+    run_elapsed: float = 0
 
     def reset(self, positions):
         self.frames = [Step(positions.copy())]
+        self.evolution = Evolution()
+
+    def remaining(self):
+        step = self.frames[-1]
+        count, elapsed = step.number - self.run_step, step.elapsed - self.run_elapsed
+        if not self.running or count <= 0 or elapsed <= 0:
+            return None
+        return max(0, self.max_steps - step.number) * elapsed / count
 
 
-def optimize(structure, calculator, fmax, max_steps, receive, stop=lambda: False):
+def optimize(structure, calculator, fmax, max_steps, receive, stop=lambda: False, *, evolution=None):
     from .motion import AllowedMotion
     from ase.optimize import FIRE
     if structure.free is not None and not structure.free.any():
         raise ValueError("全部原子固定，请先解除需要优化的原子约束。")
-    atoms = Atoms(symbols=structure.symbols, positions=structure.positions,
-                  cell=structure.cell, pbc=structure.pbc)
-    if structure.free is not None:
-        atoms.set_constraint(AllowedMotion(structure.cell, structure.free))
-    atoms.calc = calculator
-    dynamics = FIRE(atoms, logfile=None, maxstep=0.1)
+    evolution = Evolution() if evolution is None else evolution
+    if not evolution.reuse(structure, calculator):
+        atoms = Atoms(symbols=structure.symbols, positions=structure.positions,
+                      cell=structure.cell, pbc=structure.pbc)
+        if structure.free is not None:
+            atoms.set_constraint(AllowedMotion(np.eye(3) if structure.cell is None else structure.cell, structure.free))
+        atoms.calc = calculator
+        evolution.dynamics = FIRE(atoms, logfile=None, maxstep=0.1)
+    dynamics = evolution.dynamics
+    atoms = dynamics.atoms
+    completed = evolution.offset + dynamics.nsteps
+    elapsed = 0 if evolution.last is None else evolution.last.elapsed
     started = perf_counter()
-    for converged in dynamics.irun(fmax=fmax, steps=max_steps):
+    for converged in dynamics.irun(fmax=fmax, steps=max(0, max_steps - completed)):
         energy = float(atoms.get_potential_energy())
         forces, raw = atoms.get_forces(), atoms.get_forces(apply_constraint=False)
         if not np.isfinite(energy) or not np.isfinite(raw).all():
             raise ValueError("模型返回非有限能量或力，已停止优化。")
-        receive(Step(atoms.positions.copy(), dynamics.nsteps, energy,
+        step = Step(atoms.positions.copy(), evolution.offset + dynamics.nsteps, energy,
                      float(np.linalg.norm(forces, axis=1).max()),
-                     float(np.linalg.norm(raw, axis=1).max()), perf_counter() - started))
+                     float(np.linalg.norm(raw, axis=1).max()), elapsed + perf_counter() - started)
+        evolution.last = step
+        receive(step)
         if stop():
-            return "已停止"
+            return "已暂停"
     return "已收敛" if converged else "达到最大步数"
 
 

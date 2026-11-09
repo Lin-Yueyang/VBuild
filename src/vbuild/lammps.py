@@ -12,6 +12,17 @@ from .formats import from_atoms
 from .source import open_source
 
 
+class IncompleteDump(ValueError):
+    pass
+
+
+def dump_line(stream, field):
+    line = stream.readline()
+    if not line:
+        raise IncompleteDump("末帧未写完（缺少" + field + "）")
+    return line
+
+
 @dataclass
 class LammpsInfo:
     types: list[int]
@@ -51,24 +62,32 @@ def dump_block(stream):
     first = stream.readline().strip()
     declared = None
     if first == b"ITEM: UNITS":
-        declared = stream.readline().decode().strip()
-        first = stream.readline().strip()
+        declared = dump_line(stream, "单位").decode().strip()
+        first = dump_line(stream, "TIMESTEP").strip()
     if first != b"ITEM: TIMESTEP":
         raise ValueError("LAMMPS dump 需要 ITEM: TIMESTEP 标记。")
-    step = int(stream.readline())
-    if stream.readline().strip() != b"ITEM: NUMBER OF ATOMS":
+    step = int(dump_line(stream, "时间步"))
+    if dump_line(stream, "NUMBER OF ATOMS").strip() != b"ITEM: NUMBER OF ATOMS":
         raise ValueError("LAMMPS dump 缺少原子数。")
-    count = int(stream.readline())
-    header = stream.readline().decode().split()
+    count = int(dump_line(stream, "原子数"))
+    header = dump_line(stream, "BOX BOUNDS").decode().split()
     if count <= 0 or header[:3] != ["ITEM:", "BOX", "BOUNDS"]:
         raise ValueError("LAMMPS dump 缺少有效晶胞。")
-    bounds = np.array([[float(x) for x in stream.readline().split()] for _index in range(3)])
-    columns = stream.readline().decode().split()
+    bounds = np.array([[float(x) for x in dump_line(stream, "晶胞边界").split()] for _index in range(3)])
+    columns = dump_line(stream, "ATOMS 表头").decode().split()
     if columns[:2] != ["ITEM:", "ATOMS"]:
         raise ValueError("LAMMPS dump 缺少 ATOMS 表头。")
-    rows = [stream.readline().decode().split() for _index in range(count)]
-    if any(len(row) != len(columns) - 2 for row in rows):
-        raise ValueError("LAMMPS dump 坐标数量/列数不足。")
+    rows = []
+    for index in range(count):
+        line = stream.readline()
+        if not line:
+            raise IncompleteDump(f"末帧未写完（{index}/{count} 原子）")
+        row = line.decode().split()
+        if len(row) != len(columns) - 2:
+            if not line.endswith(b'\n') and not stream.read(1):
+                raise IncompleteDump(f"末帧坐标未写完（第 {index + 1}/{count} 个原子）")
+            raise ValueError(f"LAMMPS dump 步 {step} 的第 {index + 1} 个原子需要 {len(columns) - 2} 列，实际 {len(row)} 列。")
+        rows.append(row)
     return step, header[3:], bounds, columns[2:], np.array(rows), declared
 
 

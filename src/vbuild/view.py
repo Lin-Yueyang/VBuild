@@ -28,6 +28,8 @@ def rotate_group(points, axis, degrees):
 
 def axis_up(cell, axis):
     direction = cell[axis] / np.linalg.norm(cell[axis])
-    other = cell[(axis + 1) % 3]
+    other = np.array([0., 0., 1.]) if axis < 2 else cell[0]
     up = other - np.dot(other, direction) * direction
+    if np.linalg.norm(up) < 1e-8:
+        up = np.array([0., 1., 0.]) - direction[1] * direction
     return up / np.linalg.norm(up)

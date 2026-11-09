@@ -14,6 +14,7 @@ from .formats import FrameDocument, from_atoms
 from .model import Structure
 from .source import identity, open_source
 from .trajectory import Trajectory, coordinate_lines
+from .lammps import IncompleteDump
 
 
 class IncompleteXml(ValueError):
@@ -190,7 +191,11 @@ class ReportTrajectory(Trajectory):
                     if not line.strip():
                         continue
                     stream.seek(offset)
-                    document = self.read_document(stream)
+                    try:
+                        document = self.read_document(stream)
+                    except IncompleteDump as error:
+                        self.notice = str(error) + f"；已载入 {len(records)} 个完整帧"
+                        break
                     offsets.append(offset)
                 records.append(document.observations)
                 if time.monotonic() - emitted > .2:

@@ -80,6 +80,7 @@ class ChargeSpin(QWidget):
 
 class RelaxPanel(Overlay):
     start_requested = Signal()
+    continue_requested = Signal()
     path_changed = Signal(str)
     export_requested = Signal(str)
     view_requested = Signal(str)
@@ -88,6 +89,7 @@ class RelaxPanel(Overlay):
     def __init__(self, controller, parent):
         super().__init__(parent, resizable=True, vertical=True)
         self.controller, self.state = controller, None
+        self.can_continue = False
         self.fix_shortcut = 'Ctrl+F'
         self.setObjectName("relax_panel")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
@@ -187,11 +189,24 @@ class RelaxPanel(Overlay):
         self.timestep_label = QLabel("步长")
         form.addRow(self.timestep_label, self.timestep)
         layout.addLayout(form)
+        self.advanced = QToolButton()
+        self.advanced.setText("高级参数")
+        self.advanced.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self.advanced.setArrowType(Qt.ArrowType.RightArrow)
+        self.advanced.setCheckable(True)
+        layout.addWidget(self.advanced)
+        self.wall_options = QWidget()
+        wall_layout = QVBoxLayout(self.wall_options)
+        wall_layout.setContentsMargins(0, 0, 0, 0)
+        wall_layout.setSpacing(4)
+        layout.addWidget(self.wall_options)
+        self.wall_options.hide()
+        self.advanced.toggled.connect(self.show_advanced)
         self.walls = {}
         for name, label, initial in (("upper", "开启上墙", 20), ("lower", "开启下墙", 0)):
             enabled = QCheckBox(label)
             enabled.toggled.connect(self.parameters)
-            layout.addWidget(enabled)
+            wall_layout.addWidget(enabled)
             fields = QWidget()
             wall_form = QFormLayout(fields)
             wall_form.setContentsMargins(0, 0, 0, 0)
@@ -208,27 +223,39 @@ class RelaxPanel(Overlay):
                 widget.valueChanged.connect(self.parameters)
             wall_form.addRow("z 位置", position)
             wall_form.addRow("弹簧系数", spring)
-            layout.addWidget(fields)
+            wall_layout.addWidget(fields)
             self.walls[name] = (enabled, fields, position, spring)
         self.preview_walls = QPushButton("预览墙位置")
         self.preview_walls.setCheckable(True)
         self.preview_walls.clicked.connect(lambda: self.view_requested.emit("walls"))
-        layout.addWidget(self.preview_walls)
+        wall_layout.addWidget(self.preview_walls)
         self.guide = QLabel()
         self.guide.setWordWrap(True)
         layout.addWidget(self.guide)
-        row = QHBoxLayout()
         self.start = QPushButton("开始优化")
         self.start.setObjectName("start_relax")
+        self.start.setMinimumHeight(34)
+        self.start.setStyleSheet("QPushButton { background: #1675c6; color: white; font-weight: 600; border: 1px solid #1263a9; border-radius: 4px; padding: 6px; }"
+                                 "QPushButton:hover { background: #2388dc; } QPushButton:pressed { background: #105b9b; }"
+                                 "QPushButton:disabled { background: #dce5ed; color: #8795a1; border-color: #cbd5df; }")
         self.start.clicked.connect(self.start_requested)
-        row.addWidget(self.start)
-        self.stop = QPushButton("停止")
+        layout.addWidget(self.start)
+        row = QHBoxLayout()
+        self.proceed = QPushButton("继续优化")
+        self.proceed.setObjectName("continue_relax")
+        self.proceed.clicked.connect(self.continue_requested)
+        row.addWidget(self.proceed)
+        self.stop = QPushButton("暂停")
         self.stop.clicked.connect(controller.stop)
         row.addWidget(self.stop)
         layout.addLayout(row)
         self.status = QLabel()
         self.status.setWordWrap(True)
         layout.addWidget(self.status)
+        self.eta = QLabel()
+        self.eta.setWordWrap(True)
+        self.eta.setStyleSheet("color: #687581; font-size: 11px;")
+        layout.addWidget(self.eta)
         self.exports = {}
         for names in (("trajectory", "final"), ("data", "table"), ("curves", "info")):
             row = QHBoxLayout()
@@ -271,6 +298,8 @@ class RelaxPanel(Overlay):
             self.state.walls = Walls(**{name: Wall(box.isChecked(), position.value(), spring.value())
                                        for name, (box, _fields, position, spring) in self.walls.items()})
             self.show_wall_fields()
+            self.update_continue()
+            self.update_progress()
             self.walls_changed.emit()
 
     def show_wall_fields(self):
@@ -279,6 +308,28 @@ class RelaxPanel(Overlay):
             enabled.setVisible(md)
             fields.setVisible(md and enabled.isChecked())
         self.preview_walls.setVisible(md)
+
+    def show_advanced(self, visible):
+        self.advanced.setArrowType(Qt.ArrowType.DownArrow if visible else Qt.ArrowType.RightArrow)
+        self.wall_options.setVisible(visible)
+        self.fit(self.parentWidget().height())
+
+    def update_progress(self):
+        state = self.state
+        if state is None:
+            return
+        seconds = state.remaining()
+        duration = ("估算中" if state.running else "—") if seconds is None else (
+            f"{int(seconds) // 3600:d} 小时 {int(seconds) % 3600 // 60:02d} 分" if seconds >= 3600 else
+            f"{int(seconds) // 60:d} 分 {int(seconds) % 60:02d} 秒")
+        self.eta.setText(("预计剩余：" if state.kind == "md" else "预计剩余（步数上限）：") + duration)
+        self.status.setText(state.status)
+
+    def update_continue(self):
+        state, controller = self.state, self.controller
+        self.proceed.setEnabled(bool(self.can_continue and state is not None and state.frames[-1].energy is not None
+                                     and not controller.busy and controller.calculator is not None
+                                     and state.max_steps > state.frames[-1].number))
 
     def update_guide(self):
         key = self.fix_shortcut
@@ -290,8 +341,9 @@ class RelaxPanel(Overlay):
         height = self.height() if self.manual else self.body.sizeHint().height() + self.grip.height() + 25
         self.resize(self.width(), min(height, max(120, bottom - self.y() - 8)))
 
-    def populate(self, state, editable):
+    def populate(self, state, editable, can_continue=False):
         self.state = state
+        self.can_continue = can_continue
         self.setVisible(state is not None)
         if state is None:
             self.indicator.set_state(False, False)
@@ -305,9 +357,13 @@ class RelaxPanel(Overlay):
             widget.setVisible(not md)
         for widget in (self.temperature, self.temperature_label, self.timestep, self.timestep_label):
             widget.setVisible(md)
-        self.steps_label.setText("步数" if md else "最大步数")
+        self.steps_label.setText("目标总步数")
         self.steps.setSingleStep(1000 if md else 1)
-        self.start.setText("开始预平衡" if md else "开始优化")
+        has_run = state.frames[-1].energy is not None
+        self.start.setText("重新开始" if has_run else "开始预平衡" if md else "开始优化")
+        self.proceed.setText("继续预平衡" if md else "继续优化")
+        self.advanced.setVisible(md)
+        self.wall_options.setVisible(md and self.advanced.isChecked())
         self.update_guide()
         self.guide.setVisible(not md)
         with QSignalBlocker(self.force), QSignalBlocker(self.steps), QSignalBlocker(self.temperature), QSignalBlocker(self.timestep):
@@ -345,8 +401,9 @@ class RelaxPanel(Overlay):
         self.indicator.set_state(controller.loader is not None, controller.calculator is not None)
         self.model_status.setText(controller.message)
         self.start.setEnabled(bool(editable and not controller.busy and controller.calculator is not None))
+        self.update_continue()
         self.stop.setEnabled(state.running)
-        self.status.setText(state.status)
+        self.update_progress()
         self.fit(self.parentWidget().height())
 
 

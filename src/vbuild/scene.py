@@ -699,7 +699,7 @@ class Scene(QWidget):
         direction = self.structure.cell[axis]
         previous = np.array(camera.position) - center
         aligned = abs(np.dot(previous / distance, direction / np.linalg.norm(direction))) > 1 - 1e-10
-        up = camera.up if aligned else axis_up(self.structure.cell, axis)
+        up = camera.up if axis == 2 and aligned else axis_up(self.structure.cell, axis)
         camera.position = center + sign * distance * direction / np.linalg.norm(direction)
         camera.up = up
         transform = vtkTransform()

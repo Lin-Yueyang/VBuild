@@ -17,7 +17,7 @@ from PySide6.QtGui import QAction, QActionGroup, QCursor, QIcon, QImage, QKeySeq
 from PySide6.QtWidgets import (
     QCheckBox, QDialog, QDialogButtonBox, QDoubleSpinBox, QFileDialog,
     QFormLayout, QLabel, QMainWindow, QMenu, QMessageBox, QPushButton, QSpinBox, QTabBar, QToolBar, QToolButton,
-    QStackedWidget, QTabWidget, QVBoxLayout, QWidget,
+    QProgressDialog, QStackedWidget, QTabWidget, QVBoxLayout, QWidget,
 )
 from .atoms import AtomDialog, AtomPanel, PeriodicTable
 from .catalog import molecule_group
@@ -36,7 +36,7 @@ from .display import DisplayPanel
 from .bond_dialog import BondDialog
 from .player import IndexThread, Player
 from .trajectory import Trajectory, XyzDocument
-from .relax import Relaxation, xdatcar_chunks
+from .relax import Relaxation
 from .thermal import free_directions
 from .relax_worker import RelaxController
 from .relax_panel import RelaxPanel, RelaxInfo
@@ -53,7 +53,6 @@ from .forces import ForceController
 from .force_panel import ForcePanel
 from .export_dialog import ExportDialog
 from .model import Velocities
-from .writing import group_order, vasp_header, vasp_rows
 from .warmup import start as start_warmup
 from .tabs import StructureTabs
 from .mp_key import read as read_mp_key
@@ -113,6 +112,7 @@ class Window(QMainWindow):
         self.sessions: list[Session] = []
         self.current_index = -1
         self.pending_update = None
+        self.export_job = None
         self.loaders = {}
         self.closing = False
         self.preload_started = False
@@ -188,6 +188,7 @@ class Window(QMainWindow):
         self.relaxer.frames_ready.connect(self.relax_frames)
         self.relax_panel = RelaxPanel(self.relaxer, self.scene.plotter.interactor)
         self.relax_panel.start_requested.connect(self.start_relax)
+        self.relax_panel.continue_requested.connect(lambda: self.start_relax(resume=True))
         self.relax_panel.path_changed.connect(self.save_model_path)
         self.relax_panel.export_requested.connect(self.export_result)
         self.relax_panel.view_requested.connect(self.toggle_results)
@@ -467,12 +468,21 @@ class Window(QMainWindow):
             button.setStyleSheet("QToolButton { padding: 0px; }")
         toolbar.addSeparator()
         for name, (label, motion, sign) in ROTATIONS.items():
-            action = QAction(QIcon(str(Path(__file__).with_name("icons") / ("turn_" + name + ".svg"))), label, self)
+            if name in ('left', 'ccw'):
+                toolbar.addSeparator()
+            text = {'up': '上', 'down': '下', 'left': '左', 'right': '右', 'ccw': '逆时针', 'cw': '顺时针'}[name]
+            action = QAction(QIcon(str(Path(__file__).with_name("icons") / ("turn_" + name + ".svg"))), text, self)
             action.triggered.connect(lambda _checked, operation=motion, direction=sign: self.turn(operation, direction))
             self.actions["turn_" + name] = action
             toolbar.addAction(action)
-            toolbar.widgetForAction(action).setFixedSize(30, 30)
-            toolbar.widgetForAction(action).setStyleSheet("QToolButton { padding: 0px; }")
+            button = toolbar.widgetForAction(action)
+            button.setIconSize(QSize(18, 18))
+            button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
+            button.setStyleSheet("QToolButton { padding: 0px; border: 1px solid transparent; border-radius: 3px; font-size: 10px; }"
+                                "QToolButton:hover { background: #e7eef4; border-color: #bac9d4; }"
+                                "QToolButton:pressed { background: #d5e3ef; border-color: #91a9bc; }")
+            side = max(40, button.sizeHint().width(), button.sizeHint().height())
+            button.setFixedSize(side, side)
         toolbar.addSeparator()
         self.actions["slab"].setToolTip("切面扩胞")
         toolbar.addAction(self.actions["slab"])
@@ -1286,25 +1296,19 @@ class Window(QMainWindow):
             target = self.path.with_name(stem + tag + suffix)
         elif self.path.suffix.lower() in (".cif", ".data", ".lmp", ".lammps"):
             target = self.path.with_suffix(suffix)
-        filters = {"VASP：晶胞、约束、温度 (*.vasp POSCAR* CONTCAR*)": "vasp",
-                   "XYZ：仅元素坐标，无晶胞/约束/温度 (*.xyz)": "xyz",
-                   "CIF：晶胞与原子，无约束/温度 (*.cif)": "cif",
-                   "LAMMPS data：atomic/metal，晶胞坐标及标准元素质量 (*.data *.lmp)": "lammps-data"}
+        filters = {"VASP (*.vasp POSCAR* CONTCAR*)": "vasp",
+                   "XYZ (*.xyz)": "xyz",
+                   "CIF (*.cif)": "cif",
+                   "LAMMPS data (*.data *.lmp)": "lammps-data"}
         if xyz:
             filters = {key: value for key, value in filters.items() if value == "xyz"}
         elif not all(self.document.structure.pbc):
             filters = {key: value for key, value in filters.items() if value not in ("vasp", "cif")}
         dialog = ExportDialog(self, "导出最终结构" if final else "导出当前帧结构", target, filters,
-                              preserved_mode=self.document.mode if self.document.restart else None)
-        if dialog.exec() != QDialog.DialogCode.Accepted:
-            return False
-        try:
-            self.save_to(Path(dialog.selectedFiles()[0]), overwrite=True, format=dialog.kind, final=final,
-                         options=dialog.export_options())
-        except (ValueError, OSError) as error:
-            QMessageBox.critical(self, "文件无法保存", str(error))
-            return False
-        return True
+                              preserved_mode=self.document.mode if self.document.restart else None,
+                              on_export=lambda path, kind, options: self.save_to(
+                                  path, overwrite=True, format=kind, final=final, options=options))
+        return dialog.exec() == QDialog.DialogCode.Accepted
 
     def save_to(self, path: Path, *, overwrite=False, format=None, final=False, options=None):
         session = self.sessions[self.current_index]
@@ -1385,36 +1389,14 @@ class Window(QMainWindow):
         return self.convert_frames(session, kind, interval)
 
     def convert_frames(self, session, kind, interval=1):
-        previous = None
-        count = len(session.relaxation.frames) if session.relaxation is not None else len(session.trajectory.offsets)
-        if session.trajectory is not None and session.trajectory.kind == "neb":
-            count = session.trajectory.export_count
-        preferred = (session.document.original_labels if isinstance(session.document, PoscarDocument)
-                     else session.document.original.labels if isinstance(session.document, DraftDocument) else ())
-        for index in range(0, count, interval):
-            if session.relaxation is not None:
-                temporary = replace(session, frame=index)
-                document = self.export_document(temporary)
-            else:
-                document = (session.trajectory.export_frame(index) if session.trajectory.kind == "neb"
-                            else session.trajectory.frame(index))
-            structure = document.structure
-            if kind == "xyz":
-                yield serialize(document, "xyz")
-                continue
-            if structure.cell is None or not all(structure.pbc):
-                raise ValueError("XDATCAR 需要每帧都有三维周期晶胞。")
-            order, names, counts = group_order(structure.labels, preferred)
-            header = ("\n".join(vasp_header(structure.cell, names, counts, "VBuild trajectory")) + "\n").encode()
-            signature = (tuple(names), tuple(counts), structure.cell.tobytes())
-            if signature != previous:
-                yield header
-            previous = signature
-            yield f"Direct configuration= {index + 1}\n".encode()
-            fraction = np.linalg.solve(structure.cell.T, structure.positions[order].T).T
-            yield ("\n".join(vasp_rows(fraction)) + "\n").encode()
+        from .export_worker import frames
+        yield from frames(session, kind, interval)
 
     def export_xdatcar(self):
+        if self.export_job is not None:
+            self.export_job[1].show()
+            self.export_job[1].raise_()
+            return
         session = self.sessions[self.current_index]
         periodic = session.document.structure.cell is not None and all(session.document.structure.pbc)
         filters = {"XDATCAR（无固定约束） (*.xdatcar XDATCAR*)": "xdatcar", "XYZ（无晶胞/附加数据） (*.xyz)": "xyz"}
@@ -1424,14 +1406,46 @@ class Window(QMainWindow):
         count = len(session.relaxation.frames) if session.relaxation is not None else len(session.trajectory.offsets)
         if session.trajectory is not None and session.trajectory.kind == "neb":
             count = session.trajectory.export_count
-        dialog = ExportDialog(self, "导出轨迹", target, filters, trajectory=True, frames=count)
+        dialog = ExportDialog(self, "导出轨迹", target, filters, trajectory=True, frames=count,
+                              on_export=lambda path, kind, options: self.trajectory_content(
+                                  session, path, kind, interval=options.interval))
         if dialog.exec() == QDialog.DialogCode.Accepted:
-            try:
-                target = Path(dialog.selectedFiles()[0])
-                self.write_content(target, self.trajectory_content(session, target, dialog.kind,
-                                   interval=dialog.export_options().interval), overwrite=True)
-            except (ValueError, OSError) as error:
-                QMessageBox.critical(self, "轨迹无法保存", str(error))
+            self.start_export(session, Path(dialog.selectedFiles()[0]), dialog.kind,
+                              dialog.export_options().interval)
+
+    def start_export(self, session, target, kind, interval):
+        from .export_worker import ExportTask
+        task = ExportTask(session, target, kind, interval, self)
+        dialog = QProgressDialog('正在导出轨迹…', '取消', 0, 100, self)
+        dialog.setWindowTitle('导出轨迹')
+        dialog.setWindowModality(Qt.WindowModality.NonModal)
+        dialog.setMinimumDuration(0)
+        dialog.setAutoClose(False)
+        dialog.setAutoReset(False)
+        dialog.setValue(0)
+        dialog.canceled.connect(task.requestInterruption)
+        def progress(done, total):
+            dialog.setLabelText(f'正在导出：{done} / {total} 帧')
+            dialog.setValue(min(99, done * 100 // max(1, total)))
+        task.progress.connect(progress)
+        task.phase.connect(dialog.setLabelText)
+        task.finished.connect(self.export_finished)
+        self.export_job = task, dialog
+        dialog.show()
+        task.start()
+
+    def export_finished(self):
+        task, dialog = self.export_job
+        dialog.close()
+        dialog.deleteLater()
+        self.export_job = None
+        if task.error and not self.closing:
+            QMessageBox.critical(self, '轨迹无法保存', task.error)
+        else:
+            self.statusBar().showMessage('导出已取消' if task.cancelled else '轨迹已导出：' + str(task.target), 6000)
+        task.deleteLater()
+        if self.closing:
+            self.close()
 
     def export_result(self, kind):
         if kind == "trajectory":
@@ -2230,7 +2244,7 @@ class Window(QMainWindow):
         self.scene.selection = [value for value in self.scene.selection if value < len(document.structure.symbols)]
         self.scene.set_frame(document.structure)
         self.player.set_frame(index)
-        self.player.message.clear()
+        self.player.message.setText(getattr(reader, "notice", ""))
         if old_symbols != document.structure.symbols:
             self.refresh()
         else:
@@ -2745,7 +2759,7 @@ class Window(QMainWindow):
         self.settings["mace_paths"] = {name: str(value) for name, value in self.relaxer.paths.items()}
         self.persist_settings()
 
-    def start_relax(self):
+    def start_relax(self, *, resume=False):
         session = self.sessions[self.current_index]
         if session.relaxation.kind == "md":
             try:
@@ -2755,13 +2769,20 @@ class Window(QMainWindow):
                 return
         self.scene.cancel_gesture()
         self.scene.cancel_paste()
+        playing = self.player.timer.isActive()
         self.player.pause()
-        session.frame = 0
+        structure = deepcopy(self.document.structure)
+        if resume:
+            if session.frame != len(session.relaxation.frames) - 1:
+                structure.positions = session.relaxation.frames[-1].positions.copy()
+        else:
+            session.frame = 0
         session.follow_latest = False
         session.history = self.history = History()
-        self.relaxer.start(session, deepcopy(self.document.structure))
+        self.relaxer.start(session, structure, resume=resume)
         self.configure_player()
-        self.player.start()
+        if not resume or playing:
+            self.player.start()
         self.scene.set_mode("rotate")
         self.actions["rotate"].setChecked(True)
         self.refresh()
@@ -2777,14 +2798,15 @@ class Window(QMainWindow):
         state = session.relaxation
         active = session in self.sessions and self.current_index >= 0 and self.sessions[self.current_index] is session
         follow = session.follow_latest and not (active and self.player.timer.isActive())
-        initial = frames[0].number == 0
+        initial = frames[0].number == state.frames[-1].number
+        replaced = len(state.frames) - 1
         if initial:
-            state.frames[0] = frames[0]
+            state.frames[-1] = frames[0]
             frames = frames[1:]
         state.frames.extend(frames)
         if session not in self.sessions:
             return
-        shown = follow or (initial and session.frame == 0)
+        shown = follow or (initial and session.frame == replaced)
         if shown:
             if follow:
                 session.frame = len(state.frames) - 1
@@ -2797,6 +2819,7 @@ class Window(QMainWindow):
                 self.scene.set_frame(self.document.structure)
             self.configure_player()
             self.populate_results()
+            self.relax_panel.update_progress()
             self._status()
 
     def editable(self):
@@ -3040,7 +3063,10 @@ class Window(QMainWindow):
         movable = editable and (state is None or free_directions(len(self.document.structure.symbols), self.document.structure.free).any())
         if loaded:
             self.relaxer.set_structure(self.document.structure)
-        self.relax_panel.populate(state, movable)
+        current_session = self.sessions[self.current_index] if loaded else None
+        can_continue = (state is not None and not current_session.readonly and current_session.trajectory is None
+                        and free_directions(len(self.document.structure.symbols), self.document.structure.free).any()) if loaded else False
+        self.relax_panel.populate(state, movable, can_continue)
         self.relax_panel.exports["trajectory"].setEnabled(self.actions["export_xdatcar"].isEnabled())
         self.populate_results()
         self.update_walls()
@@ -3100,7 +3126,9 @@ class Window(QMainWindow):
         self.actions["remove"].setEnabled(editable and state is None and bool(selected) and not placing
                                           and (isinstance(self.document, DraftDocument) or len(selected) < len(self.document.structure.symbols)))
         if state is not None:
-            self.relax_panel.populate(state, editable and free_directions(len(self.document.structure.symbols), self.document.structure.free).any())
+            session = self.sessions[self.current_index]
+            free = free_directions(len(self.document.structure.symbols), self.document.structure.free).any()
+            self.relax_panel.populate(state, editable and free, not session.readonly and session.trajectory is None and free)
         if (editing or self.scene.mode == "select") and len(selected) == 1 and not placing:
             index = selected[0]
             self.atom_panel.populate(index, structure.symbols[index], structure.cell, structure.positions[index], editable=editing)
@@ -3259,10 +3287,12 @@ class Window(QMainWindow):
             return
         self.closing = True
         self.forcer.stop()
-        if self.loaders or self.relaxer.busy or self.forcer.busy:
+        if self.loaders or self.relaxer.busy or self.forcer.busy or self.export_job is not None:
             for task in self.loaders.values():
                 task.requestInterruption()
             self.relaxer.stop()
+            if self.export_job is not None:
+                self.export_job[0].requestInterruption()
             event.ignore()
             return
         self.settings["geometry"] = bytes(self.window().saveGeometry().toBase64()).decode("ascii")
@@ -3315,6 +3345,11 @@ class Window(QMainWindow):
         return True
 
     def close_tab(self, index: int):
+        if self.export_job is not None and self.tabs.tabData(index) is self.export_job[0].source:
+            self.export_job[1].show()
+            self.export_job[1].raise_()
+            self.statusBar().showMessage('该结构正在导出，请等待完成或取消导出。', 4000)
+            return
         if self.builder is not None:
             self.builder[0].reject()
             if self.builder is not None:

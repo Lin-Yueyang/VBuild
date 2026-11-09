@@ -119,6 +119,7 @@ class RunOptimization(QThread):
         self.fmax, self.max_steps = state.fmax, state.max_steps
         self.temperature, self.timestep, self.friction = state.temperature, state.timestep, state.friction
         self.walls = state.walls
+        self.evolution = state.evolution
         self.pending, self.lock = [], Lock()
 
     def record(self, step):
@@ -136,10 +137,10 @@ class RunOptimization(QThread):
             if self.kind == "md":
                 status = equilibrate(self.structure, self.calculator, self.temperature, self.max_steps,
                                      self.timestep, self.friction, self.record, self.isInterruptionRequested,
-                                     walls=self.walls)
+                                     walls=self.walls, evolution=self.evolution)
             else:
                 status = optimize(self.structure, self.calculator, self.fmax, self.max_steps,
-                                  self.record, self.isInterruptionRequested)
+                                  self.record, self.isInterruptionRequested, evolution=self.evolution)
         except (ValueError, RuntimeError, OSError, TypeError, KeyError) as error:
             status = ("预平衡失败：" if self.kind == "md" else "优化失败：") + str(error)
         self.done.emit(status)
@@ -241,9 +242,11 @@ class RelaxController(QObject):
         self.loader = None
         self.changed.emit()
 
-    def start(self, session, structure):
+    def start(self, session, structure, *, resume=False):
         state = session.relaxation
-        state.reset(structure.positions)
+        if not resume:
+            state.reset(structure.positions)
+        state.run_step, state.run_elapsed = state.frames[-1].number, state.frames[-1].elapsed
         state.running, state.status = True, "正在预平衡" if state.kind == "md" else "正在优化"
         self.owner = session
         self.task = RunOptimization(structure, self.calculator, state, self)
@@ -272,6 +275,6 @@ class RelaxController(QObject):
 
     def stop(self):
         if self.task is not None:
-            self.owner.relaxation.status = "正在停止，等待当前步完成"
+            self.owner.relaxation.status = "正在暂停，等待当前步完成"
             self.task.requestInterruption()
             self.changed.emit()

@@ -117,16 +117,18 @@ def export_velocities(document, regenerate):
         if structure.temperature is not None:
             return Velocities(generate(structure.symbols, structure.cell, structure.free, structure.temperature), 'cartesian')
         return None
-    velocities = deepcopy(document.input_velocities)
-    if velocities is not None:
-        if isinstance(document, PoscarDocument):
-            if any(origin is None for origin in structure.origins):
-                raise ValueError("新增原子没有原始速度，请勾选“重新赋予温度”。")
-            if velocities.mode == 'direct' and not np.array_equal(structure.cell, document.original_cell):
-                raise ValueError("晶胞变化后不能保留原始 Direct 速度，请勾选“重新赋予温度”。")
-            velocities.values = velocities.values[list(structure.origins)]
-        if velocities.values.shape != structure.positions.shape:
-            raise ValueError("原始速度与当前原子数量不一致，请勾选“重新赋予温度”。")
+    source = document.input_velocities
+    if source is None or not np.any(source.values):
+        return None
+    velocities = deepcopy(source)
+    if isinstance(document, PoscarDocument):
+        if any(origin is None for origin in structure.origins):
+            raise ValueError("新增原子没有原始速度，请勾选“重新赋予温度”。")
+        if velocities.mode == 'direct' and not np.array_equal(structure.cell, document.original_cell):
+            raise ValueError("晶胞变化后不能保留原始 Direct 速度，请勾选“重新赋予温度”。")
+        velocities.values = velocities.values[list(structure.origins)]
+    if velocities.values.shape != structure.positions.shape:
+        raise ValueError("原始速度与当前原子数量不一致，请勾选“重新赋予温度”。")
     return velocities
 
 
