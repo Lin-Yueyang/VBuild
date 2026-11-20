@@ -112,6 +112,7 @@ class Scene(QWidget):
         self.bond_radius = .12
         self.bond_ranges = {}
         self.view_style = default_style()
+        self.element_colors = {}
         self.bond_visibility = None
         self.background = None
         self.bond_data, self.bond_actor = line_actor(self.plotter.renderer, (1, 1, 1), 15)
@@ -615,6 +616,8 @@ class Scene(QWidget):
             self.view_style = deepcopy(view_style)
         if not advanced:
             profile = deepcopy(self.view_style)
+            for symbol, color in self.element_colors.items():
+                profile["elements"][symbol]["color"] = color
             profile["bonds"].update(radius=self.bond_radius * profile["bonds"]["radius"] / .12,
                                     factor=self.bond_scale, ranges=dict(self.bond_ranges))
             if self.bond_visibility is not None:

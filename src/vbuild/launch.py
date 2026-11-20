@@ -48,9 +48,33 @@ def missing_message(missing, extra="gui"):
             + torch_note + "\n\n可在“设置→Python 与 MLIP”选择 Python、下载模型与计算依赖。")
 
 
-def message(text):
+def message(text, log_path=None):
     if sys.platform == "win32":
-        ctypes.windll.user32.MessageBoxW(None, text, "VBuild", 0x10)
+        try:
+            import tkinter as tk
+            from tkinter import ttk
+            root = tk.Tk()
+        except (ImportError, RuntimeError):
+            ctypes.windll.user32.MessageBoxW(None, text + "\n\n按 Ctrl+C 可复制此窗口内容。", "VBuild", 0x10)
+            return
+        except tk.TclError:
+            ctypes.windll.user32.MessageBoxW(None, text + "\n\n按 Ctrl+C 可复制此窗口内容。", "VBuild", 0x10)
+            return
+        root.title("VBuild")
+        body = tk.Text(root, wrap="word", height=min(20, max(6, len(text) // 66 + text.count("\n"))), width=76)
+        body.pack(fill="both", expand=True, padx=12, pady=12)
+        body.insert("1.0", text)
+        body.configure(state="disabled")
+        def copy(value):
+            root.clipboard_clear()
+            root.clipboard_append(value)
+        buttons = ttk.Frame(root)
+        buttons.pack(fill="x", padx=12, pady=(0, 12))
+        ttk.Button(buttons, text="复制全部", command=lambda: copy(text)).pack(side="left")
+        if log_path:
+            ttk.Button(buttons, text="复制日志路径", command=lambda: copy(str(log_path))).pack(side="left", padx=6)
+        ttk.Button(buttons, text="确定", command=root.destroy).pack(side="right")
+        root.wait_window()
     elif sys.platform == "darwin":
         script = 'on run argv\n display alert "VBuild" message (item 1 of argv) as critical\nend run'
         subprocess.run(["osascript", "-e", script, text], check=True)
@@ -62,7 +86,7 @@ def offer_gui_install(found, files):
     text = ('需要安装建模依赖：\n' + '、'.join(gui_plan(found)) + '\n\nPython：' + str(console_python())
             + '\nQt/VTK 体积较大；此步骤不安装 MLIP 或 CUDA。\n安装完成后自动打开软件。')
     if sys.platform == 'win32':
-        answer = ctypes.windll.user32.MessageBoxW(None, text + '\n\n是否安装？', '安装建模依赖', 0x24)
+        answer = ctypes.windll.user32.MessageBoxW(None, text + '\n\n是否安装？（Ctrl+C 可复制此信息）', '安装建模依赖', 0x24)
         if answer == 6:
             subprocess.Popen([str(console_python()), '-B', str(Path(__file__).with_name('runtime.py')), 'gui',
                               '--python', str(console_python()), '--launch-files', *map(str, files)],
@@ -93,7 +117,7 @@ def main():
     def report(kind, error, trace):
         traceback.print_exception(kind, error, trace)
         stream.flush()
-        message(f"{kind.__name__}: {error}\n\n详细日志：{log_path}")
+        message(f"{kind.__name__}: {error}\n\n详细日志：{log_path}", log_path=log_path)
 
     sys.excepthook = report
     if not supported(sys.version_info, struct.calcsize('P') * 8, platform.python_implementation(), bool(sysconfig.get_config_var('Py_GIL_DISABLED'))):

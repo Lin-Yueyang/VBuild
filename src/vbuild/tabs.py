@@ -16,7 +16,7 @@ def tail(text, metrics, width):
 class StructureTabs(QTabBar):
     def __init__(self, parent):
         super().__init__(parent)
-        self.double = True
+        self.double = False
         self.press = None
         self.reordering = False
         self.destination = None

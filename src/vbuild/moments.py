@@ -80,7 +80,8 @@ class MomentData:
         prefix = "|m|" if self.component == "norm" else "m" if self.component == "scalar" else "m" + self.component
         if self.orbital != "tot":
             prefix += "(" + self.orbital + ")"
-        return ["" if symbol in self.hidden_elements else f"{prefix} {value:+.{self.decimals}f} μB"
+        decimals = min(self.decimals, 3)
+        return ["" if symbol in self.hidden_elements else f"{prefix} {value:+.{decimals}f} μB"
                 for symbol, value in zip(self.symbols, self.values())]
 
     def summary(self, visible=None):
@@ -89,11 +90,12 @@ class MomentData:
             keep &= visible
         values = self.moments if self.orbital == 'tot' else self.orbitals[self.orbital]
         selected = values[keep].sum(axis=0)
+        decimals = min(self.decimals, 3)
         def format_value(vector):
             if vector is None:
                 return '未提供'
             value = np.linalg.norm(vector) if self.component == 'norm' else vector[0 if self.component == 'scalar' else 'xyz'.index(self.component)]
-            return f'{0.0 if round(float(value), self.decimals) == 0 else value:.{self.decimals}f} μB'
+            return f'{0.0 if round(float(value), decimals) == 0 else value:.{decimals}f} μB'
         return ('已显示原子的磁矩合计：' + format_value(selected) +
                 '\n全部原子的磁矩合计：' + format_value(values.sum(axis=0)) +
                 '\n体系自旋总磁矩：' + format_value(self.total_moment))

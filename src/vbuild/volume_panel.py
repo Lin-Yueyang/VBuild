@@ -23,11 +23,14 @@ def defaults(volume):
     data = volume.channels[0]
     low, high = float(data.min()), float(data.max())
     signed = low < 0 < high
-    level = .75 if volume.family == "elf" else .05
-    if signed:
-        level = min(level, max(-low, high) / 2)
-    if not signed and not low < level < high:
-        level = (low + high) / 2
+    if volume.kind in ("CHGCAR", "CHG"):
+        level = .01
+    else:
+        level = .75 if volume.family == "elf" else .05
+        if signed:
+            level = min(level, max(-low, high) / 2)
+        elif not low < level < high:
+            level = (low + high) / 2
     if high == low:
         high += max(abs(low) * .01, 1e-6)
     return {"enabled": False, "source": 0, "channel": 0, "mode": "slice" if volume.family == "elf" else "iso",

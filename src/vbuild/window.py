@@ -112,6 +112,7 @@ class Window(QMainWindow):
         self.sessions: list[Session] = []
         self.current_index = -1
         self.pending_update = None
+        self.deferred_download = None
         self.export_job = None
         self.loaders = {}
         self.closing = False
@@ -149,7 +150,7 @@ class Window(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         self.tabs = StructureTabs(workspace)
-        self.tabs.set_double(settings.get("directory_tabs", True))
+        self.tabs.set_double(settings["directory_tabs"])
         self.tabs.setObjectName("structures")
         self.tabs.setTabsClosable(True)
         self.tabs.setExpanding(False)
@@ -287,6 +288,7 @@ class Window(QMainWindow):
             ("neb", "NEB", self.open_neb),
             ("show_info", "显示计算过程", self.toggle_info),
             ("export_xdatcar", "导出轨迹", self.export_xdatcar),
+            ("export_image", "导出图片", self.export_image),
             ("copy", "复制原子", self.copy_atoms),
             ("paste", "粘贴原子", self.begin_paste),
             ("cancel", "取消粘贴", lambda: self.scene.cancel_paste()),
@@ -333,7 +335,6 @@ class Window(QMainWindow):
             self.scene.plotter.interactor.addAction(action)
             modes.addAction(action)
         self.actions["style"].setIcon(QIcon(str(Path(__file__).with_name("icons") / "style_ball.svg")))
-        modes.addAction(self.actions["style"])
         modes.addSeparator()
         contacts = QAction(QIcon(str(Path(__file__).with_name("icons") / "contacts.svg")), "检测原子距离", self)
         contacts.setCheckable(True)
@@ -383,7 +384,7 @@ class Window(QMainWindow):
         for name, title, icon in (("show_report", "文件能量与力", "report"),
                                   ("show_charge", "CHGCAR / 电子数据", "charge"),
                                   ("bader", "Bader 电荷", "bader"),
-                                  ("moments", "磁矩", "moment"),
+                                  ("moments", "显示磁矩", "moment"),
                                   ("show_elf", "ELFCAR", "elf")):
             action = QAction(QIcon(str(Path(__file__).with_name("icons") / (icon + ".svg"))), title, self)
             action.setCheckable(True)
@@ -418,7 +419,7 @@ class Window(QMainWindow):
         self.new_menu.addAction(self.actions["new_blank"])
         self.new_menu.addAction(self.actions["new_build"])
         self.actions["new"].setMenu(self.new_menu)
-        for title, names in (("文件", ("new", "open", "save", "export_xdatcar", "close", "quit")),
+        for title, names in (("文件", ("new", "open", "save", "export_xdatcar", "export_image", "close", "quit")),
                              ("编辑", ("undo", "redo", "copy", "paste", "all", "free", "fix", "add", "remove", "wrap")),
                              ("视图", ("reset", "style", "style_cycle", "render_controls", "show_contacts", "show_forces", "show_fixed", "show_cell_info", "show_grid", "show_periodic", "show_indices", "show_player", "show_info", "show_report", "show_charge", "bader", "moments", "show_elf", "next", "previous"))):
             menu = self.menuBar().addMenu(title)
@@ -524,6 +525,8 @@ class Window(QMainWindow):
             if name == "pages":
                 self.pages_button = toolbar.widgetForAction(action)
                 self.pages_menu = None
+        toolbar.addAction(self.actions["style"])
+        toolbar.widgetForAction(self.actions["style"]).setFixedSize(30, 30)
         action = QAction(QIcon(str(Path(__file__).with_name("icons") / "palette.svg")), "显示风格", self)
         action.triggered.connect(self.show_view_styles)
         self.actions["appearance"] = action
@@ -589,6 +592,7 @@ class Window(QMainWindow):
             for name in (*MODES, *ARROWS, "style_cycle"):
                 scene.plotter.interactor.addAction(self.actions[name])
         scene.contact_factor = self.settings["contact_factor"]
+        scene.element_colors = self.settings["element_colors"]
         scene.show_cell_boundary = self.settings['show_cell_boundary']
         scene.set_orientation_axes(self.settings['show_orientation_axes'])
         scene.bond_scale, scene.bond_ranges = self.bond_scale, self.bond_ranges
@@ -868,6 +872,7 @@ class Window(QMainWindow):
         if self.closing:
             return
         volume = loaded.volume
+        open_volume_panel = volume is not None and volume.kind in ("CHGCAR", "CHG", "ELFCAR")
         for number, document in enumerate(loaded.documents):
             self._store_current()
             source = path if number == 0 else path.with_name(path.stem + f"_block{number + 1}" + path.suffix)
@@ -875,11 +880,18 @@ class Window(QMainWindow):
                               indexing=loaded.reader is not None, readonly=volume is not None or loaded.readonly)
             if volume is not None:
                 self.attach_volume(session, volume)
+                if open_volume_panel:
+                    session.volume_options[volume.family]["enabled"] = True
             self.finish_import(session, target if number == 0 else None)
+            if path.name.lower().split(".", 1)[0] == "outcar":
+                session.show_moments = True
+                self.load_moments(session=session, automatic=True)
             if loaded.reader is not None:
                 self.start_index(session)
         if target is not None and target.page in self.comparisons:
             target.activate()
+        if open_volume_panel and self.scene.session is session:
+            self.reveal_panel(self.volume_panels[volume.family])
         if loaded.notice:
             self.statusBar().showMessage(loaded.notice, 8000)
 
@@ -975,24 +987,23 @@ class Window(QMainWindow):
         if session.moments is None and not session.moments_loading:
             self.load_moments()
         self.update_moments()
-        self.moment_panel.show()
-        self.moment_panel.raise_()
-        self.place_panels()
+        self.reveal_panel(self.moment_panel)
 
-    def load_moments(self):
+    def load_moments(self, *, session=None, automatic=False):
         from .moments import MomentTask
-        session = self.sessions[self.current_index]
+        if session is None:
+            session = self.sessions[self.current_index]
         source = session.path if session.path.name.lower().split(".", 1)[0] == "outcar" else session.path.parent
         task = MomentTask(source, self)
         self.loaders[task] = task
         session.moments_loading = True
-        task.ready.connect(lambda data: self.moments_ready(session, data))
-        task.failed.connect(lambda error: self.moments_failed(session, error))
+        task.ready.connect(lambda data: self.moments_ready(session, data, automatic))
+        task.failed.connect(lambda error: self.moments_failed(session, error, automatic))
         task.finished.connect(lambda: self.index_finished(task))
         task.start()
         self.update_moments()
 
-    def moments_ready(self, session, data):
+    def moments_ready(self, session, data, automatic=False):
         session.moments_loading = False
         if session not in self.sessions or self.closing:
             return
@@ -1006,15 +1017,24 @@ class Window(QMainWindow):
         if self.current_index >= 0 and self.sessions[self.current_index] is session:
             self.update_moments()
             self.place_panels()
+            if session.show_moments and not data.matches(session.document.structure):
+                self.statusBar().showMessage(f"第 {data.step} 步的磁矩与当前结构不匹配。", 10000)
+            elif automatic and session.show_moments:
+                self.show_moments()
         self._store_current(interrupt=False)
         for page in self.comparisons:
             page.sync()
 
-    def moments_failed(self, session, error):
+    def moments_failed(self, session, error, automatic=False):
         session.moments_loading = False
         if not self.closing and session in self.sessions:
             self.update_moments()
-            QMessageBox.information(self, "磁矩", session.path.parent.name + "\n" + error)
+            if automatic:
+                session.show_moments = False
+                if self.current_index >= 0 and self.sessions[self.current_index] is session:
+                    self.statusBar().showMessage(error, 10000)
+            else:
+                QMessageBox.information(self, "显示磁矩", session.path.parent.name + "\n" + error)
 
     def edit_moments(self):
         session = self.sessions[self.current_index]
@@ -1078,9 +1098,12 @@ class Window(QMainWindow):
 
     def show_volume(self, family):
         self.update_volumes()
-        self.volume_panels[family].show()
-        self.volume_panels[family].raise_()
+        self.reveal_panel(self.volume_panels[family])
+
+    def reveal_panel(self, panel):
+        panel.show()
         self.place_panels()
+        panel.raise_()
 
     def update_volumes(self):
         session = self.sessions[self.current_index] if self.document is not None else None
@@ -1412,6 +1435,30 @@ class Window(QMainWindow):
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self.start_export(session, Path(dialog.selectedFiles()[0]), dialog.kind,
                               dialog.export_options().interval)
+
+    def export_image(self):
+        from .image_export import ImageOptions, snapshot
+        session = self.sessions[self.current_index]
+        scene = self.scene
+        target = self.path.with_name(self.path.stem + ".png")
+        options = ImageOptions(scene.cell_actor is not None)
+        def save(path, kind, opts):
+            if path.suffix.lower() != "." + kind:
+                raise ValueError("文件名后缀应为 ." + kind)
+            content = snapshot(scene, opts.cell.isChecked(), opts.background_color(), kind)
+            self.write_content(path, content, overwrite=True)
+        dialog = ExportDialog(self, "导出图片", target, {"PNG 图片 (*.png)": "png", "SVG（内嵌 PNG） (*.svg)": "svg"},
+                              image_options=options, on_export=save)
+        playing = self.player.timer.isActive()
+        follow = session.follow_latest
+        self.player.timer.stop()
+        session.follow_latest = False
+        try:
+            dialog.exec()
+        finally:
+            session.follow_latest = follow
+            if playing and self.scene.session is session:
+                self.player.timer.start()
 
     def start_export(self, session, target, kind, interval):
         from .export_worker import ExportTask
@@ -2342,7 +2389,12 @@ class Window(QMainWindow):
         radius.setSingleStep(.01)
         radius.setSuffix(" Å")
         radius.setValue(self.settings["bond_radius"])
-        atoms.addRow("键半径", radius)
+        from .element_colors import ElementColors
+        symbols = self.scene.structure.symbols if self.scene.structure is not None else ()
+        colors = ElementColors(self.settings["element_colors"], self.scene.view_style["elements"],
+                               symbols[0] if len(symbols) else "H")
+        atoms.addRow("元素颜色", colors)
+        atoms.addRow("键粗细（半径）", radius)
         contact = QDoubleSpinBox()
         contact.setObjectName("contact_factor")
         contact.setRange(0.05, 1.00)
@@ -2434,7 +2486,7 @@ class Window(QMainWindow):
             self.settings.update(move_step=self.move_step, bond_scale=self.bond_scale,
                                  show_cell_boundary=boundary.isChecked(),
                                  show_orientation_axes=orientation.isChecked(),
-                                 bond_radius=radius.value(),
+                                 bond_radius=radius.value(), element_colors=colors.values,
                                  contact_factor=contact.value(), charge_level_step=level_step.value(),
                                  rotation_step=self.rotation_step, bond_ranges=self.bond_ranges,
                                  clipboard_limit=capacity.value(), move_ghost=ghost.isChecked(),
@@ -2453,6 +2505,10 @@ class Window(QMainWindow):
                 scene.contact_factor = contact.value()
                 scene.set_bond_scale(self.bond_scale)
                 scene.set_bond_radius(radius.value())
+                if scene.element_colors != colors.values:
+                    scene.element_colors = colors.values
+                    if not scene.visual.advanced:
+                        scene.set_look(scene.visual.kind)
                 scene.ghost.configure(ghost.isChecked(), opacity.value(), decimals.value())
                 scene.set_measure_decimals(precision.value())
                 scene.plotter.render()
@@ -2481,7 +2537,11 @@ class Window(QMainWindow):
     def show_updates(self):
         from .update_dialog import UpdateDialog
         dialog = UpdateDialog(self)
-        if dialog.exec() != QDialog.DialogCode.Accepted or dialog.install_stage is None:
+        if self.deferred_download:
+            dialog.show_download(self.deferred_download)
+        result = dialog.exec()
+        self.deferred_download = dialog.deferred_download
+        if result != QDialog.DialogCode.Accepted or dialog.install_stage is None:
             return
         from .update import prepare_installer
         import os
@@ -3006,6 +3066,7 @@ class Window(QMainWindow):
         for name in ("new_blank", "new_build"):
             self.actions[name].setEnabled(self.builder is None)
         self.actions["save"].setEnabled(populated and self.builder is None)
+        self.actions["export_image"].setEnabled(populated)
         self.actions["export_xdatcar"].setEnabled(populated
                                                   and (state is not None or trajectory) and not self.sessions[self.current_index].indexing)
         self.actions["relax"].setEnabled(populated and not self.document.restart and self.builder is None
@@ -3308,6 +3369,16 @@ class Window(QMainWindow):
                 event.ignore()
                 return
             self.pending_update = None
+        elif self.deferred_download:
+            from .update_files import install
+            try:
+                install(Path(self.deferred_download['stage']), ROOT)
+            except (ValueError, OSError, KeyError) as error:
+                self.closing = False
+                self.deferred_download = None
+                QMessageBox.critical(self, '更新未安装', str(error))
+                event.ignore()
+                return
         self.clipboard.changed.disconnect(self.clipboard_changed)
         for session in self.sessions:
             if session.trajectory is not None and session.trajectory.kind == "neb":

@@ -161,13 +161,15 @@ def download(model, root=ROOT, progress=print):
 
 def run(command, root=ROOT):
     print(subprocess.list2cmdline(list(map(str, command))), flush=True)
+    output = []
     with subprocess.Popen(list(map(str, command)), cwd=root, env=process_env(command[0]), creationflags=NO_WINDOW,
                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf-8', errors='replace') as process:
         for line in process.stdout:
+            output.append(line)
             print(line, end='', flush=True)
         code = process.wait()
     if code:
-        raise subprocess.CalledProcessError(code, command)
+        raise subprocess.CalledProcessError(code, command, output=''.join(output))
 
 
 def pip_command(python, root=ROOT, index='https://pypi.org/simple'):
@@ -351,12 +353,16 @@ def main():
             result = install_gui(args.python, args.root)
         except (OSError, ValueError, subprocess.CalledProcessError) as error:
             import traceback
+            output = (error.output or '') if isinstance(error, subprocess.CalledProcessError) else ''
             trace = traceback.format_exc()
-            (logs / 'gui-install-error.log').write_text(trace, encoding='utf-8')
+            log = logs / 'gui-install-error.log'
+            log.write_text(f'{datetime.now().isoformat(timespec="seconds")}\nPython: {args.python}\n\n'
+                           + output + '\n' + trace, encoding='utf-8')
             print(trace, flush=True)
             if args.launch_files is not None:
                 from vbuild.launch import message
-                message('建模依赖安装失败：' + str(error) + '\n日志：' + str(logs / 'gui-install-error.log'))
+                detail = '\n'.join(output.strip().splitlines()[-12:]) or str(error)
+                message('建模依赖安装失败\n\n' + detail + '\n\n日志：' + str(log), log_path=log)
             return 1
         if args.launch_files is not None:
             target = console_python(args.python)

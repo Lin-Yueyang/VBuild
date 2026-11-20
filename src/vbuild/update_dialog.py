@@ -19,6 +19,7 @@ class UpdateDialog(QDialog):
     def __init__(self, parent=None, *, root=ROOT):
         super().__init__(parent)
         self.root, self.info, self.downloaded = Path(root), None, None
+        self.deferred_download = None
         self.install_stage, self.closing = None, False
         self.setWindowTitle('检查更新')
         layout = QVBoxLayout(self)
@@ -149,11 +150,19 @@ class UpdateDialog(QDialog):
             self.download.setEnabled(newer)
             self.status.setText('发现新版本，可以下载。' if newer else '当前已是最新版本。' if version(self.info['version']) == version(self.current) else '本地版本高于 GitHub 版本。')
         else:
-            self.downloaded = self.response
-            self.open_folder.setEnabled(True)
-            self.install.setEnabled((self.root / 'manifest.json').is_file())
-            self.status.setText('下载和校验完成，安装前会备份旧程序。' if self.install.isEnabled()
-                                else '下载和校验完成；开发目录请手动使用下载的文件。')
+            self.show_download(self.response)
+
+    def show_download(self, download):
+        self.downloaded = download
+        self.latest_label.setText(download['version'])
+        self.open_folder.setEnabled(True)
+        self.install.setEnabled((self.root / 'manifest.json').is_file())
+        if self.install.isEnabled():
+            self.deferred_download = download
+            self.close_button.setText('稍后重启')
+            self.status.setText('更新已就绪。关闭此窗口可继续使用，退出软件时安装，下次打开即为新版。')
+        else:
+            self.status.setText('下载和校验完成；开发目录请手动使用下载的文件。')
 
     def request_install(self):
         self.install_stage = Path(self.downloaded['stage'])

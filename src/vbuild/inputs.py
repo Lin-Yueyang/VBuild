@@ -71,7 +71,7 @@ def read_input(path, kind, options, stop=lambda: False):
             if "max_force" in document.observations:
                 document.observations["optimization_max_force"] = document.observations["max_force"]
             document.observations["max_force"] = document.observations["raw_max_force"]
-        notice = "已导入 OUTCAR 的最后完整结构；点击“磁矩”查看原子磁矩。"
+        notice = "已导入 OUTCAR 的最后完整结构。"
         return Loaded([document], notice=notice + reader.notice, readonly=True)
     if kind == "volume":
         volume = read_volume(path, stop)

@@ -31,7 +31,7 @@ class DirectoryField(QLineEdit):
 
 class ExportDialog(QFileDialog):
     def __init__(self, parent, title, target, filters, *, trajectory=False, frames=1,
-                 preserved_mode=None, on_export=None):
+                 preserved_mode=None, on_export=None, image_options=None):
         chinese()
         super().__init__(parent, title, str(Path(target).parent))
         self.setOption(QFileDialog.Option.DontUseNativeDialog)
@@ -100,6 +100,31 @@ class ExportDialog(QFileDialog):
         self.filename.setText(Path(target).name)
         layout.addWidget(self.filename, 2, 1, 1, 2)
         layout.addWidget(self.findChild(QComboBox, 'fileTypeCombo'), 3, 1, 1, 2)
+        self.image_options = image_options
+        options = image_options if image_options is not None else self.structure_options(trajectory, frames, preserved_mode)
+        layout.addWidget(options, 4, 0, 1, 3)
+        self.error = QLabel(self)
+        self.error.setWordWrap(True)
+        self.error.setStyleSheet('color: #a52c2c;')
+        self.error.hide()
+        layout.addWidget(self.error, 5, 0, 1, 3)
+        self.show_directory(self.directory().absolutePath())
+        self.findChild(QFileSystemModel).rootPathChanged.connect(self.show_directory)
+        buttons = self.findChild(QDialogButtonBox, 'buttonBox')
+        buttons.setOrientation(Qt.Orientation.Horizontal)
+        layout.addWidget(buttons, 6, 0, 1, 3)
+        for button in buttons.buttons():
+            button.setMinimumSize(90, 34)
+        self.directory_box.textChanged.connect(self.error.hide)
+        self.filename.textChanged.connect(self.error.hide)
+        if image_options is None:
+            self.thermal.toggled.connect(self.error.hide)
+            self.temperature.valueChanged.connect(self.error.hide)
+            self.keep.toggled.connect(self.error.hide)
+        self.filterSelected.connect(self.format_changed)
+        self.format_changed(self.selectedNameFilter())
+
+    def structure_options(self, trajectory, frames, preserved_mode):
         options = QGroupBox('导出设置', self)
         grid = QGridLayout(options)
         grid.setColumnStretch(2, 1)
@@ -136,26 +161,7 @@ class ExportDialog(QFileDialog):
                                     'VASP 单帧导出按分数坐标 [0,1) 归入晶胞；斜晶胞的笛卡尔分量仍可能为负。')
         grid.addWidget(QLabel('VASP 坐标'), 0, 0)
         grid.addWidget(self.coordinates, 0, 1, 1, 2, Qt.AlignmentFlag.AlignLeft)
-        layout.addWidget(options, 4, 0, 1, 3)
-        self.error = QLabel(self)
-        self.error.setWordWrap(True)
-        self.error.setStyleSheet('color: #a52c2c;')
-        self.error.hide()
-        layout.addWidget(self.error, 5, 0, 1, 3)
-        self.show_directory(self.directory().absolutePath())
-        self.findChild(QFileSystemModel).rootPathChanged.connect(self.show_directory)
-        buttons = self.findChild(QDialogButtonBox, 'buttonBox')
-        buttons.setOrientation(Qt.Orientation.Horizontal)
-        layout.addWidget(buttons, 6, 0, 1, 3)
-        for button in buttons.buttons():
-            button.setMinimumSize(90, 34)
-        self.directory_box.textChanged.connect(self.error.hide)
-        self.filename.textChanged.connect(self.error.hide)
-        self.thermal.toggled.connect(self.error.hide)
-        self.temperature.valueChanged.connect(self.error.hide)
-        self.keep.toggled.connect(self.error.hide)
-        self.filterSelected.connect(self.format_changed)
-        self.format_changed(self.selectedNameFilter())
+        return options
 
     def setup_folder_menu(self):
         self.folder_menu = QMenu(self)
@@ -197,6 +203,12 @@ class ExportDialog(QFileDialog):
 
     def format_changed(self, selected):
         kind = self.filters[selected]
+        if self.image_options is not None:
+            self.setDefaultSuffix(kind)
+            name = Path(self.filename.text())
+            if name.suffix.lower() in ('.png', '.svg') and name.suffix.lower() != '.' + kind:
+                self.filename.setText(str(name.with_suffix('.' + kind)))
+            return
         vasp = not self.trajectory and kind == 'vasp'
         editable = self.preserved_mode is None
         self.keep.setEnabled(vasp and editable)
@@ -250,7 +262,8 @@ class ExportDialog(QFileDialog):
     def done(self, result):
         if result == QDialog.DialogCode.Accepted and self.on_export is not None:
             try:
-                self.on_export(Path(self.selectedFiles()[0]), self.kind, self.export_options())
+                options = self.image_options if self.image_options is not None else self.export_options()
+                self.on_export(Path(self.selectedFiles()[0]), self.kind, options)
             except (ValueError, OSError) as error:
                 self.show_error(str(error))
                 return

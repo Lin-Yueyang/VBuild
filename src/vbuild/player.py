@@ -162,6 +162,15 @@ class Player(QWidget):
             button.clicked.connect(lambda _checked, step=delta: self.step(step))
             row.addWidget(button)
             self.steps.append(button)
+        self.pause()
+        for button in (self.play, *self.steps):
+            button.setFixedSize(button.sizeHint() * 1.5)
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.play.setIconSize(self.play.iconSize() * 1.5)
+        for button in self.steps:
+            font = button.font()
+            font.setPointSizeF(font.pointSizeF() * 1.5)
+            button.setFont(font)
         row.addWidget(QLabel("帧"))
         self.frame = QSpinBox()
         self.frame.setObjectName("frame_number")
@@ -184,7 +193,6 @@ class Player(QWidget):
         row.addWidget(self.message, 1)
         layout.addLayout(row)
         self.panel_height = self.sizeHint().height()
-        self.pause()
         self.hide()
 
     def configure(self, count, current, speed, ready, message="", *, live=False):

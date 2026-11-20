@@ -3,6 +3,9 @@
 from PySide6.QtCore import QEvent, Qt, QTimer, Signal
 from PySide6.QtWidgets import QMenu, QRubberBand, QToolBar
 
+DEFAULT_HIDDEN = {"dihedral", "plane", "show_contacts", "show_player", "show_grid",
+                  "show_report", "neb", "show_forces", "render"}
+
 
 class ModeBar(QToolBar):
     preferences_changed = Signal(object)
@@ -37,7 +40,7 @@ class ModeBar(QToolBar):
             group = self.sections[index]
             ordered = list(dict.fromkeys(name for name in stored if name in group))
             self.sections[index] = ordered + [name for name in group if name not in ordered]
-        self.hidden = set(saved.get("hidden", [])) & self.names.keys()
+        self.hidden = set(saved.get("hidden", DEFAULT_HIDDEN)) & self.names.keys()
         self.rebuild()
 
     def rebuild(self):
@@ -67,7 +70,7 @@ class ModeBar(QToolBar):
 
     def restore(self):
         self.sections = [group.copy() for group in self.defaults]
-        self.hidden.clear()
+        self.hidden = DEFAULT_HIDDEN & self.names.keys()
         self.rebuild()
         self.preferences_changed.emit(self.saved())
 

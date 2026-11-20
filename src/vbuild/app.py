@@ -18,6 +18,7 @@ class Application(QApplication):
 
     def __init__(self, arguments):
         super().__init__(arguments)
+        self.setStyleSheet("QMessageBox { messagebox-text-interaction-flags: 5; }")
         self.shell = None
         self.pending_files = []
 

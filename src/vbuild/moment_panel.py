@@ -32,7 +32,7 @@ class MomentPanel(Overlay):
         self.orbital.setObjectName("moment_orbital")
         self.component = QComboBox()
         self.decimals = QSpinBox()
-        self.decimals.setRange(0, 6)
+        self.decimals.setRange(0, 3)
         self.decimals.setValue(2)
         form.addRow("轨道分量", self.orbital)
         form.addRow("自旋分量", self.component)
@@ -123,7 +123,7 @@ class MomentTable(QWidget):
         titles = [name + (" " + axis if vector else "") for name, _values in channels
                   for axis in ("xyz" if vector else ("",))]
         selected = data.values()
-        rows = [[index + 1, symbol, *(float(value) for _name, values in channels for value in values[index]), float(selected[index])]
+        rows = [[index + 1, symbol, *(f"{value:.3f}" for _name, values in channels for value in values[index]), f"{selected[index]:.3f}"]
                 for index, symbol in enumerate(data.symbols)]
         current = data.orbital + (" |m|" if data.component == "norm" else " " + data.component if vector else "")
         self.model.populate(["序号", "元素", *titles, "当前显示值"], rows)
