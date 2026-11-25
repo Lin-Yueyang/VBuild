@@ -19,6 +19,7 @@ class Session:
     mode: str = "rotate"
     measurement: tuple | None = None
     camera: object | None = None
+    zoom_reference: float | None = None
     show_fixed: bool = False
     show_cell_info: bool = False
     grid: dict = field(default_factory=dict)
@@ -29,7 +30,7 @@ class Session:
     periods: tuple[int, int, int] = (1, 1, 1)
     show_indices: bool = False
     hidden_elements: set[str] = field(default_factory=set)
-    axis_signs: list[int] = field(default_factory=lambda: [1, 1, 1])
+    last_view_axis: int | None = None
     trajectory: Trajectory | None = None
     frame: int = 0
     follow_latest: bool = True
@@ -46,6 +47,7 @@ class Session:
     representation: str = "ball"
     show_style: bool = False
     render_style: dict | None = None
+    render_palette_base: dict | None = None
     view_style: dict | None = None
     show_bonds: bool | None = None
     render_atoms: dict = field(default_factory=dict)

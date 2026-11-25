@@ -6,7 +6,7 @@ from copy import deepcopy
 import numpy as np
 import pyvista as pv
 from ase.data import atomic_numbers
-from PySide6.QtCore import QEvent, QPoint, QRect, Signal, Qt, QTimer
+from PySide6.QtCore import QEvent, QPoint, QRect, QSignalBlocker, Signal, Qt, QTimer
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import QLabel, QRubberBand, QVBoxLayout, QWidget
 from pyvistaqt import QtInteractor
@@ -14,20 +14,21 @@ from vtkmodules.util.numpy_support import numpy_to_vtk
 from vtkmodules.vtkCommonCore import vtkPoints
 from vtkmodules.vtkCommonDataModel import vtkPolyData
 from vtkmodules.vtkInteractionStyle import vtkInteractorStyleTrackballCamera
-from vtkmodules.vtkCommonTransforms import vtkTransform
 from vtkmodules.vtkRenderingCore import vtkCamera, vtkTextActor
 
 from .model import Structure
 from .measure import diagram, label_position, measure, SIZES
 from .bonds import bond_halves, find_bonds, connected
+from .hydrogen_view import HydrogenBonds
 from .paste import PastePreview
 from .fixed import FixedMarkers
 from .display import AtomLabels
-from .view import axis_up, periodic_images, rotate_vector
+from .view import axial_orientation, periodic_images, rotate_vector
 from .wall_view import WallPreview, WaterRange
 from .glyph import atom_actors, line_actor, set_lines
 from .visual import Visual, Stage
 from .look import color_rgb, default_style
+from .styles import GENERAL
 from .contacts import short_pairs
 from .force_view import ForceArrows
 from .ghost import MoveGhost
@@ -35,6 +36,7 @@ from .moment_view import MomentSummary
 from .volume_view import VolumeView
 from .cell_info import cell_text
 from .axis_marker import AxisMarker
+from .zoom import ZoomPercent
 from .grid import defaults as grid_defaults
 from .grid_view import CoordinateGrid
 
@@ -95,6 +97,13 @@ class Scene(QWidget):
         self.cell_info.setStyleSheet('background: rgba(255,255,255,215); color: black; font-size: 14px;')
         self.cell_info.move(12, 12)
         self.cell_info.hide()
+        self.show_zoom = False
+        self.zoom_reference = None
+        self.zoom_label = ZoomPercent(self.plotter.interactor)
+        self.zoom_label.activated.connect(self.activated)
+        self.zoom_label.valueChanged.connect(self.set_zoom_percent)
+        self.zoom_label.hide()
+        self.plotter.renderer.AddObserver("EndEvent", self.update_zoom_label)
         self.hidden_elements = set()
         self.drag = None
         self.camera_drag = None
@@ -113,7 +122,13 @@ class Scene(QWidget):
         self.bond_ranges = {}
         self.view_style = default_style()
         self.element_colors = {}
+        self.style_colors = {}
         self.bond_visibility = None
+        owner = parent
+        while owner is not None and not hasattr(owner, "settings"):
+            owner = owner.parentWidget()
+        self.show_hydrogen_bonds = owner.settings.get("show_hydrogen_bonds", True) if owner is not None else True
+        self.hbonds = HydrogenBonds(self.plotter.renderer)
         self.background = None
         self.bond_data, self.bond_actor = line_actor(self.plotter.renderer, (1, 1, 1), 15)
         self.bond_actor.GetMapper().SetScalarModeToUseCellData()
@@ -293,6 +308,37 @@ class Scene(QWidget):
                 self.cell_info.adjustSize()
             self.cell_info.raise_()
 
+    def zoom_span(self):
+        camera = self.plotter.camera
+        if camera.GetParallelProjection():
+            return camera.GetParallelScale()
+        return camera.GetDistance() * np.tan(np.deg2rad(camera.GetViewAngle() / 2))
+
+    def update_zoom_label(self, *_args):
+        visible = self.show_zoom and self.structure is not None and self.zoom_reference is not None
+        self.zoom_label.setVisible(visible)
+        if visible:
+            value = 100 * self.zoom_reference / self.zoom_span()
+            if not (self.zoom_label.hasFocus() and self.zoom_label.lineEdit().isModified()):
+                with QSignalBlocker(self.zoom_label):
+                    self.zoom_label.setValue(value)
+            widget = self.plotter.interactor
+            bottom = self.axis_marker.bottom
+            height = widget.height() if bottom is None else min(widget.height(), bottom)
+            self.zoom_label.move(max(0, widget.width() - self.zoom_label.width() - 10),
+                                 max(0, height - self.zoom_label.height() - 8))
+
+    def set_zoom_percent(self, value):
+        span = self.zoom_reference * 100 / value
+        camera = self.plotter.camera
+        if camera.GetParallelProjection():
+            camera.SetParallelScale(span)
+        else:
+            center = np.asarray(camera.focal_point)
+            camera.position = center + (np.asarray(camera.position) - center) * (span / self.zoom_span())
+            self.plotter.reset_camera_clipping_range()
+        self.plotter.render()
+
     def set_grid(self, options):
         self.coordinate_grid.update(self.structure, options, self.period_counts())
         self.grid_options = deepcopy(options)
@@ -323,6 +369,7 @@ class Scene(QWidget):
             colors[:] = color_rgb(self.visual.profile["bonds"]["color"])
         set_lines(self.bond_data, vertices, edges)
         self.bond_data.GetCellData().SetScalars(numpy_to_vtk(colors, deep=True))
+        self.update_hydrogen_bonds()
         flags = self.structure.free
         free = None if flags is None else flags[self.sources].copy()
         if free is not None:
@@ -346,6 +393,10 @@ class Scene(QWidget):
         if self.structure.cell is None:
             self.coordinate_grid.update(self.structure, self.grid_options)
         self.geometry_changed.emit()
+
+    def update_hydrogen_bonds(self):
+        if self.structure is not None:
+            self.hbonds.update(self.show_hydrogen_bonds, self.structure, self.displayed, self.period_counts(), self.visual)
 
     def set_forces(self, values, threshold, scale):
         self.force_arrows.update(self.images, self.radii[self.sources],
@@ -480,6 +531,9 @@ class Scene(QWidget):
         self.plotter.render()
 
     def clear_structure(self):
+        self.zoom_reference = None
+        self.zoom_label.hide()
+        self.hbonds.actor.VisibilityOff()
         self.coordinate_grid.hide()
         self.cell_info.hide()
         self.show_cell_info = False
@@ -616,7 +670,9 @@ class Scene(QWidget):
             self.view_style = deepcopy(view_style)
         if not advanced:
             profile = deepcopy(self.view_style)
-            for symbol, color in self.element_colors.items():
+            name = profile["name"]
+            colors = self.element_colors if name in GENERAL else self.style_colors.get(name, {})
+            for symbol, color in colors.items():
                 profile["elements"][symbol]["color"] = color
             profile["bonds"].update(radius=self.bond_radius * profile["bonds"]["radius"] / .12,
                                     factor=self.bond_scale, ranges=dict(self.bond_ranges))
@@ -692,22 +748,19 @@ class Scene(QWidget):
             self.plotter.camera.position = (25, 25, 25)
             self.plotter.camera.parallel_scale = 10
             self.plotter.camera.clipping_range = (0.1, 1000)
+        self.zoom_reference = self.zoom_span()
+        self.update_zoom_label()
         self.update_axis_hint()
 
-    def view_axis(self, axis, sign):
+    def view_axis(self, axis, sign=None, *, repeat=False):
         self.cancel_gesture()
         camera = self.plotter.camera
         center = np.array(camera.focal_point)
-        distance = np.linalg.norm(np.array(camera.position) - center)
-        direction = self.structure.cell[axis]
-        previous = np.array(camera.position) - center
-        aligned = abs(np.dot(previous / distance, direction / np.linalg.norm(direction))) > 1 - 1e-10
-        up = camera.up if axis == 2 and aligned else axis_up(self.structure.cell, axis)
-        camera.position = center + sign * distance * direction / np.linalg.norm(direction)
+        view = np.array(camera.position) - center
+        direction, up = axial_orientation(view, camera.up, self.structure.cell[axis], sign, repeat=repeat)
+        camera.SetUserViewTransform(None)
+        camera.position = center + np.linalg.norm(view) * direction
         camera.up = up
-        transform = vtkTransform()
-        transform.Scale(sign, 1, 1)
-        camera.SetUserViewTransform(transform)
         self.sync_axes_projection()
         self.plotter.reset_camera_clipping_range()
         self.plotter.render()

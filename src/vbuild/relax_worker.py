@@ -164,6 +164,7 @@ class RelaxController(QObject):
         self.symbols, self.spin_auto = (), True
         self.hardware = None
         self.loader = None
+        self.preloaded = None
         self.task = None
         self.owner = None
         self.updates = QTimer(self)
@@ -203,9 +204,31 @@ class RelaxController(QObject):
             if engine_changed:
                 self.gpu, self.cpu = "检测中", "检测中"
                 self.detect()
+            self.use_preloaded()
             self.changed.emit()
 
+    def use_preloaded(self):
+        pool = self.preloaded
+        if pool is None or self.loader is not None or self.task is not None:
+            return False
+        key = (self.model, self.path, self.device)
+        if MODELS[self.model].engine == "deepmd" and self.charge_spin != (0, 1):
+            return False
+        if key in pool.loaded:
+            if self.calculator is not pool.loaded[key]:
+                if self.calculator is not None:
+                    return False
+                self.loaded(pool.loaded[key])
+            return True
+        if key == pool.active or key in pool.queue:
+            self.message = "正在后台预加载" if key == pool.active else "等待后台预加载"
+            return True
+        return False
+
     def load(self):
+        if self.use_preloaded():
+            self.changed.emit()
+            return
         self.message = "正在加载模型"
         self.loader = LoadModel(self.path, self.device, self, model=self.model, charge_spin=self.charge_spin)
         self.loader.ready.connect(self.loaded)
@@ -227,6 +250,7 @@ class RelaxController(QObject):
         self.charge_spin = (charge, multiplicity)
         self.calculator = None
         self.message = '模型尚未加载'
+        self.use_preloaded()
         self.changed.emit()
 
     def loaded(self, calculator):

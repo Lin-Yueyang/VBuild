@@ -1,10 +1,29 @@
 """White-background palettes; conventional element families remain recognizable."""
 
 import colorsys
+import json
+from functools import cache
+from pathlib import Path
 
 import numpy as np
 
 from .colors import element_colors
+
+
+@cache
+def vesta_colors():
+    """8-bit RGB values from VESTA 3.5.8 elements.ini (H through Am)."""
+    return json.loads(Path(__file__).with_name("vesta.json").read_text(encoding="ascii"))
+
+
+def custom_color_key(scheme):
+    return "vesta_element_colors" if scheme == "vesta" else "element_colors"
+
+
+def modeling_colors(settings):
+    scheme = settings.get("element_palette", "default")
+    base = vesta_colors() if scheme == "vesta" else {}
+    return base | settings.get(custom_color_key(scheme), {})
 
 
 COLORS = {"H": "B9C2CE", "C": "364554", "N": "3459B7", "O": "CC3C4C",

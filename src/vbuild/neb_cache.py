@@ -28,8 +28,13 @@ class CachedFrames:
 
 class NebCache:
     def __init__(self, root):
+        from .cache_cleanup import cache_lock
+        Path(root).mkdir(parents=True, exist_ok=True)
         self.path = Path(root) / ("neb_"+uuid.uuid4().hex[:12])
-        self.path.mkdir(parents=True)
+        self.lock = cache_lock(self.path)
+        if not self.lock.tryLock(0):
+            raise OSError("无法锁定 NEB 缓存：" + str(self.path))
+        self.path.mkdir()
         self.files, self.readers = [], []
         self.closed = False
 
@@ -72,4 +77,5 @@ class NebCache:
         for path in self.files:
             path.unlink(missing_ok=True)
         self.path.rmdir()
+        self.lock.unlock()
         self.closed = True

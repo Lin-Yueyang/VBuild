@@ -77,11 +77,21 @@ class ExportTask(QThread):
         self.backup = None
 
     def run(self):
+        from .cache_cleanup import cache_lock
         partial = self.target.with_name('.' + self.target.name + '.' + self.folder.name + '.part')
+        lock = cache_lock(self.folder)
+        created = False
         try:
-            self.folder.mkdir(parents=True)
+            self.folder.parent.mkdir(parents=True, exist_ok=True)
+            if not lock.tryLock(0):
+                self.error = '无法锁定导出目录：' + str(self.folder)
+                return
+            if self.folder.exists():
+                self.error = '导出工作目录已存在，请重试。'
+                return
             written, reported = 0, monotonic()
             with partial.open('xb') as stream:
+                created = True
                 for content in frames(self.snapshot, self.kind, self.interval):
                     if self.isInterruptionRequested():
                         break
@@ -95,7 +105,9 @@ class ExportTask(QThread):
                 return
             if self.target.exists():
                 self.phase.emit('正在备份原文件…')
-                self.backup = self.folder / self.target.name
+                self.folder.mkdir()
+                name = self.target.name
+                self.backup = self.folder / ('backup.' + name if name.lower() == 'unfinished.part' else name)
                 copyfile(self.target, self.backup)
             self.cancelled = self.isInterruptionRequested()
             if self.cancelled:
@@ -105,8 +117,11 @@ class ExportTask(QThread):
         except (OSError, ValueError, IndexError, KeyError, ParseError) as error:
             self.error = str(error)
         finally:
-            if partial.exists():
+            if created and partial.exists():
                 try:
+                    self.folder.mkdir(exist_ok=True)
                     move(str(partial), str(self.folder / 'unfinished.part'))
                 except OSError as error:
                     self.error = str(error) + '\n未完成文件：' + str(partial)
+            if lock.isLocked():
+                lock.unlock()

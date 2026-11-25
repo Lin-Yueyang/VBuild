@@ -15,14 +15,15 @@ import numpy as np
 from PySide6.QtCore import QByteArray, QBuffer, QEvent, QIODevice, QSignalBlocker, QSize, Qt, QTimer
 from PySide6.QtGui import QAction, QActionGroup, QCursor, QIcon, QImage, QKeySequence
 from PySide6.QtWidgets import (
-    QCheckBox, QDialog, QDialogButtonBox, QDoubleSpinBox, QFileDialog,
-    QFormLayout, QLabel, QMainWindow, QMenu, QMessageBox, QPushButton, QSpinBox, QTabBar, QToolBar, QToolButton,
+    QCheckBox, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox, QFileDialog, QGridLayout,
+    QFormLayout, QHBoxLayout, QLabel, QMainWindow, QMenu, QMessageBox, QPushButton, QSpinBox, QTabBar, QToolBar, QToolButton,
     QProgressDialog, QStackedWidget, QTabWidget, QVBoxLayout, QWidget,
 )
 from .atoms import AtomDialog, AtomPanel, PeriodicTable
 from .catalog import molecule_group
 from .clipboard import ClipboardPanel, shared_clipboard
 from .look import KINDS, default_style, read_style, style_bytes, validate as validate_style
+from .palette import custom_color_key, modeling_colors, vesta_colors
 from .style_panel import StylePanel
 from .view import rotate_group
 from .draft import DraftDocument
@@ -48,7 +49,8 @@ from .report_panel import ReportPanel
 from .reports import ReportTrajectory
 from .volume_panel import VolumePanel, defaults as volume_defaults
 from .slice_panel import SlicePanel
-from .mlip import model_paths
+from .mlip import MODELS, model_paths
+from .devices import gpu_device, has_gpu_backend
 from .forces import ForceController
 from .force_panel import ForcePanel
 from .export_dialog import ExportDialog
@@ -58,7 +60,7 @@ from .tabs import StructureTabs
 from .mp_key import read as read_mp_key
 from .modebar import ModeBar
 from .history_menu import HistoryMenu
-from .styles import TITLES, builtins as builtin_styles, insert as insert_style
+from .styles import GENERAL, TITLES, builtins as builtin_styles, insert as insert_style
 from .paths import work_dir, data_dir
 from .keys import bindings
 from .cell_info import composition_text
@@ -66,7 +68,7 @@ from .grid import defaults as grid_defaults
 from .grid_panel import GridPanel
 
 ROOT = Path(__file__).resolve().parents[2]
-SETTINGS_GROUPS = ("编辑与视角", "原子与键", "电子数据", "文字", "快捷键", "Python 与 MLIP")
+SETTINGS_GROUPS = ("编辑与视角", "原子与键", "电子数据", "文字", "快捷键", "Python 与 MLIP", "存储与缓存")
 MODES = {
     "rotate": ("旋转", "左键旋转视角"),
     "select": ("选择", "左键点选/框选；Ctrl 多选；Shift+左键选相连分子"),
@@ -103,6 +105,8 @@ class Window(QMainWindow):
         self.settings = settings
         from .label_settings import profiles
         self.settings.setdefault('label_styles', profiles(settings))
+        from .storage import Maintenance
+        self.maintenance = Maintenance(self)
         self.move_step, self.bond_scale = settings["move_step"], settings["bond_scale"]
         self.rotation_step = settings["rotation_step"]
         self.bond_ranges = settings["bond_ranges"]
@@ -199,6 +203,13 @@ class Window(QMainWindow):
         force_model = force_settings.get("model", selected_model)
         self.forcer = ForceController(force_paths[force_model], self, model=force_model, paths=force_paths)
         self.forcer.device = force_settings.get("device", self.forcer.device)
+        from .model_preload import ModelPreload
+        self.model_preload = ModelPreload(self)
+        self.relaxer.preloaded = self.forcer.preloaded = self.model_preload
+        self.model_preload.changed.connect(self.model_preload_changed)
+        self.model_load_status = QLabel()
+        self.statusBar().addPermanentWidget(self.model_load_status)
+        self.model_load_status.hide()
         self.forcer.threshold, self.forcer.scale = force_settings.get("threshold", 1.0), force_settings.get("scale", 1.0)
         self.force_panel = ForcePanel(self.forcer, self.scene.plotter.interactor)
         self.force_panel.preferences_changed.connect(self.save_force_settings)
@@ -457,7 +468,7 @@ class Window(QMainWindow):
         toolbar.addSeparator()
         for axis, label in enumerate("abc"):
             action = QAction(label, self)
-            action.setToolTip("沿晶胞 " + label + " 方向观察；重复点击切换正/负方向")
+            action.setToolTip(f"就近对齐晶胞 {label} 轴，再按一次从另一侧观察")
             action.triggered.connect(lambda _checked, index=axis: self.view_axis(index))
             self.actions["view_" + label] = action
             toolbar.addAction(action)
@@ -592,8 +603,10 @@ class Window(QMainWindow):
             for name in (*MODES, *ARROWS, "style_cycle"):
                 scene.plotter.interactor.addAction(self.actions[name])
         scene.contact_factor = self.settings["contact_factor"]
-        scene.element_colors = self.settings["element_colors"]
+        scene.element_colors = modeling_colors(self.settings)
+        scene.style_colors = self.settings.get("style_colors", {})
         scene.show_cell_boundary = self.settings['show_cell_boundary']
+        scene.show_zoom = self.settings['show_zoom']
         scene.set_orientation_axes(self.settings['show_orientation_axes'])
         scene.bond_scale, scene.bond_ranges = self.bond_scale, self.bond_ranges
         scene.set_bond_radius(self.settings["bond_radius"])
@@ -1181,6 +1194,7 @@ class Window(QMainWindow):
         session.mode = self.scene.mode
         session.measurement = self.scene.measurement_snapshot()
         session.camera = self.scene.camera_snapshot()
+        session.zoom_reference = self.scene.zoom_reference
         session.show_fixed = self.scene.show_fixed
         session.show_cell_info = self.scene.show_cell_info
         session.grid = deepcopy(self.scene.grid_options)
@@ -1239,6 +1253,8 @@ class Window(QMainWindow):
             self.render_panel.setVisible(session.render_style is not None and session.show_render)
         if camera is not None:
             self.scene.restore_camera(camera)
+            self.scene.zoom_reference = session.zoom_reference or self.scene.zoom_span()
+            self.scene.update_zoom_label()
         self.scene.plotter.interactor.setFocus()
         self.refresh()
         self.configure_player()
@@ -1437,17 +1453,18 @@ class Window(QMainWindow):
                               dialog.export_options().interval)
 
     def export_image(self):
-        from .image_export import ImageOptions, snapshot
+        from .image_export import ImageOptions, PngWriter, capture_image
         session = self.sessions[self.current_index]
         scene = self.scene
         target = self.path.with_name(self.path.stem + ".png")
-        options = ImageOptions(scene.cell_actor is not None)
+        cell_visible = scene.cell_actor.GetVisibility() if scene.cell_actor is not None else None
+        options = ImageOptions(cell_visible, scene.plotter.window_size)
         def save(path, kind, opts):
             if path.suffix.lower() != "." + kind:
                 raise ValueError("文件名后缀应为 ." + kind)
-            content = snapshot(scene, opts.cell.isChecked(), opts.background_color(), kind)
-            self.write_content(path, content, overwrite=True)
-        dialog = ExportDialog(self, "导出图片", target, {"PNG 图片 (*.png)": "png", "SVG（内嵌 PNG） (*.svg)": "svg"},
+            image = capture_image(scene, opts.cell.isChecked(), opts.background_color(), opts.resolution.currentData())
+            PngWriter(image, path, self.write_content).save()
+        dialog = ExportDialog(self, "导出图片", target, {"PNG 图片 (*.png)": "png"},
                               image_options=options, on_export=save)
         playing = self.player.timer.isActive()
         follow = session.follow_latest
@@ -1665,6 +1682,15 @@ class Window(QMainWindow):
         return scenes
 
     def set_mode(self, mode: str):
+        if mode == "edit" and isinstance(self.document, PoscarDocument) and self.document.restart:
+            source = self.sessions[self.current_index]
+            copy = Session(self.document.modeling_copy(), self.path.with_name(self.path.stem + "_edit.vasp"),
+                           mode="edit", camera=self.scene.camera_snapshot(), selection=self.scene.selection.copy(),
+                           view_style=deepcopy(self.view_profile(source)), representation=self.scene.visual.kind,
+                           show_bonds=source.show_bonds)
+            self.finish_import(copy)
+            self.statusBar().showMessage("已打开建模副本，MD 续算数据保留在原标签。", 6000)
+            return
         self.actions[mode].setChecked(True)
         self.scene.set_mode(mode)
         self._status()
@@ -1680,8 +1706,8 @@ class Window(QMainWindow):
 
     def view_axis(self, axis):
         session = self.sessions[self.current_index]
-        self.scene.view_axis(axis, session.axis_signs[axis])
-        session.axis_signs[axis] *= -1
+        self.scene.view_axis(axis, repeat=session.last_view_axis == axis)
+        session.last_view_axis = axis
 
     def update_rotation_hints(self):
         for name, (label, _motion, _sign) in ROTATIONS.items():
@@ -1772,35 +1798,66 @@ class Window(QMainWindow):
         if self.document is not None:
             session = self.sessions[self.current_index]
             current = (session.render_style or self.view_profile(session))["name"]
-        for index, (name, profile) in enumerate(self.style_library.items()):
-            if index == len(TITLES):
-                self.view_menu.addSeparator()
-            action = self.view_menu.addAction(TITLES.get(name, name))
+        custom = QMenu("自定义样式", self.view_menu)
+        for name, profile in self.style_library.items():
+            menu = self.view_menu if name in GENERAL else custom
+            action = menu.addAction(TITLES.get(name, name))
             action.setCheckable(True)
             action.setChecked(name == current)
             action.setData(name)
             action.setToolTip(profile["description"])
             group.addAction(action)
             action.triggered.connect(lambda _checked, key=name: self.choose_view_style(key))
+        self.view_menu.addMenu(custom)
         self.view_menu.setToolTipsVisible(True)
         self.view_menu.addSeparator()
-        bonds = self.view_menu.addAction("显示键")
-        bonds.setCheckable(True)
-        bonds.setChecked(self.scene.visual.profile["bonds"]["show"] if self.document is not None else self.settings.get("view_bonds", True))
-        bonds.setData("show_bonds")
-        bonds.triggered.connect(self.toggle_bonds)
-        models = self.view_menu.addMenu("模型")
-        model_group = QActionGroup(models)
-        for key, label in KINDS:
-            action = models.addAction(label)
+        palettes = self.view_menu.addMenu("元素配色")
+        palettes.setEnabled(current in GENERAL)
+        palette_group = QActionGroup(palettes)
+        scheme = self.settings.get("element_palette", "default")
+        if self.document is not None and session.render_style is not None:
+            scheme = "vesta" if session.render_palette_base is not None else "default"
+        for key, label in (("default", "默认"), ("vesta", "VESTA")):
+            action = palettes.addAction(label)
             action.setCheckable(True)
-            action.setChecked(self.document is not None and self.scene.visual.kind == key)
-            action.setEnabled(self.document is not None)
-            model_group.addAction(action)
-            action.triggered.connect(lambda _checked, kind=key: self.set_representation(kind))
+            action.setChecked(scheme == key)
+            palette_group.addAction(action)
+            action.triggered.connect(lambda _checked, name=key: self.choose_palette(name))
         self.view_menu.addSeparator()
-        self.view_menu.addAction("导入样式…", self.import_view_style)
+        self.view_menu.addAction("管理样式", self.manage_styles)
         self.view_menu.popup(self.view_button.mapToGlobal(self.view_button.rect().bottomLeft()))
+
+    def choose_palette(self, scheme):
+        session = self.scene.session
+        if session is not None and session.render_style is not None:
+            if (scheme == "vesta") == (session.render_palette_base is not None):
+                return
+            self.set_render_palette(session, scheme)
+            self.render_panel.populate(session.render_style, self.style_library, self.document.structure.symbols)
+            self.render_changed(session.render_style)
+            return
+        self.settings["element_palette"] = scheme
+        self.persist_settings()
+        colors = modeling_colors(self.settings)
+        for scene in self.scenes():
+            scene.element_colors = colors
+            if not scene.visual.advanced:
+                scene.set_look(scene.visual.kind)
+        self.sync_appearance()
+        if self.clip_panel is not None and self.clip_panel.isVisible():
+            self.clip_panel.preview(self.clip_panel.items.currentRow())
+
+    @staticmethod
+    def set_render_palette(session, scheme):
+        elements = session.render_style["elements"]
+        if scheme == "vesta":
+            colors = vesta_colors()
+            session.render_palette_base = {s: elements[s]["color"] for s in colors}
+        else:
+            colors = session.render_palette_base
+            session.render_palette_base = None
+        for symbol, color in colors.items():
+            elements[symbol]["color"] = color
 
     def toggle_bonds(self, visible):
         self.settings["view_bonds"] = visible
@@ -1850,18 +1907,45 @@ class Window(QMainWindow):
         try:
             profile = read_style(Path(name))
             self.ensure_style_library()
-            profile = insert_style(self.style_library, profile)
-            content = json.dumps({"version": 1, "styles": self.style_library}, ensure_ascii=False, indent=2).encode("utf-8")
-            self.write_content(self.styles_path, content, overwrite=True)
+            library = self.style_library.copy()
+            profile = insert_style(library, profile)
+            self.store_styles(library)
             self.choose_view_style(profile["name"])
+            return profile["name"]
         except (ValueError, KeyError, TypeError, OSError) as error:
             QMessageBox.critical(self, "样式无法导入", str(error))
+
+    def store_styles(self, library):
+        saved = {name: profile for name, profile in library.items() if name not in TITLES}
+        content = json.dumps({"version": 1, "styles": saved}, ensure_ascii=False, indent=2).encode("utf-8")
+        self.styles_path.parent.mkdir(parents=True, exist_ok=True)
+        self.write_content(self.styles_path, content, overwrite=True)
+        self.style_library = library
+
+    def manage_styles(self):
+        from .style_panel import StyleManager
+        self.ensure_style_library()
+        StyleManager(self).exec()
+
+    def remove_saved_style(self, name):
+        if name in TITLES:
+            return
+        library = self.style_library.copy()
+        del library[name]
+        self.store_styles(library)
+        for key in ("view_style", "render_style"):
+            if self.settings.get(key) == name:
+                self.settings[key] = "Default"
+        self.settings.get("style_colors", {}).pop(name, None)
+        self.persist_settings()
+        if self.document is not None and self.scene.session.render_style is not None:
+            self.render_panel.populate(self.scene.session.render_style, library, self.document.structure.symbols)
 
     def new_render(self):
         try:
             self.ensure_style_library()
             name = self.settings.get("render_style", "Default")
-            profile = deepcopy(self.style_library[name])
+            profile = self.render_profile(name)
             if name == "Default":
                 profile["scene"].update(background="#000000", grid=True)
         except (ValueError, KeyError, TypeError, OSError) as error:
@@ -1873,8 +1957,11 @@ class Window(QMainWindow):
         path = self.path.with_name(stem + "_render" + (".xyz" if source.structure.cell is None else ".vasp"))
         self._store_current()
         self.ensure_render_panel()
-        self.sessions.append(Session(document, path, representation=profile["representation"], render_style=profile,
-                                     show_bonds=self.scene.visual.profile["bonds"]["show"]))
+        session = Session(document, path, representation=profile["representation"], render_style=profile,
+                          show_bonds=self.scene.visual.profile["bonds"]["show"])
+        if name in GENERAL and self.settings.get("element_palette") == "vesta":
+            self.set_render_palette(session, "vesta")
+        self.sessions.append(session)
         self.activate_document(self.add_session_tab())
 
     def ensure_render_panel(self):
@@ -1961,9 +2048,20 @@ class Window(QMainWindow):
         session.render_topology = topology
         return changed
 
+    def render_profile(self, name):
+        profile = deepcopy(self.style_library[name])
+        for symbol, color in self.settings.get("style_colors", {}).get(name, {}).items():
+            profile["elements"][symbol]["color"] = color
+        return profile
+
     def choose_render_style(self, name):
         session = self.sessions[self.current_index]
-        session.render_style = deepcopy(self.style_library[name])
+        use_vesta = (session.render_palette_base is not None if session.render_style["name"] in GENERAL
+                     else self.settings.get("element_palette") == "vesta")
+        session.render_style = self.render_profile(name)
+        session.render_palette_base = None
+        if name in GENERAL and use_vesta:
+            self.set_render_palette(session, "vesta")
         if session.show_bonds is not None:
             session.render_style["bonds"]["show"] = session.show_bonds
         self.render_panel.populate(session.render_style, self.style_library, self.document.structure.symbols)
@@ -1979,15 +2077,15 @@ class Window(QMainWindow):
 
     def save_render_style(self, profile):
         profile = validate_style(profile)
+        library = self.style_library.copy()
         if profile["name"] in TITLES:
-            profile = insert_style(self.style_library, profile)
-        library = self.style_library | {profile["name"]: profile}
-        self.styles_path.parent.mkdir(parents=True, exist_ok=True)
-        content = json.dumps({"version": 1, "styles": library}, ensure_ascii=False, indent=2).encode("utf-8")
-        self.write_content(self.styles_path, content, overwrite=True)
-        self.style_library = library
+            profile = insert_style(library, profile)
+        library[profile["name"]] = profile
+        self.store_styles(library)
         self.sessions[self.current_index].render_style = profile
         self.settings["render_style"] = profile["name"]
+        if profile["name"] not in TITLES:
+            self.settings.get("style_colors", {}).pop(profile["name"], None)
         self.persist_settings()
         self.render_panel.populate(profile, library, self.document.structure.symbols)
         self.render_panel.status.setText("样式已保存：" + profile["name"])
@@ -2068,6 +2166,7 @@ class Window(QMainWindow):
         self.player.place()
         bottom = self.player.y() if self.player.isVisible() else self.scene.plotter.interactor.height()
         self.scene.axis_marker.place(self.player.y() if self.player.isVisible() else None)
+        self.scene.update_zoom_label()
         if self.grid_panel.isVisible():
             self.grid_panel.place(12, top)
             self.grid_panel.fit(bottom)
@@ -2344,6 +2443,37 @@ class Window(QMainWindow):
             QTimer.singleShot(0, self.show_environment)
         manage.clicked.connect(manage_environment)
         environment_layout.addWidget(manage)
+        preload = QCheckBox("启动后后台加载 MLIP 模型")
+        preload.setObjectName("preload_mlip")
+        available = {name: path.is_file() for name, path in self.relaxer.paths.items()}
+        preload.setEnabled(any(available.values()))
+        preload.setChecked(preload.isEnabled() and self.settings.get("preload_mlip", False))
+        environment_layout.addWidget(preload)
+        choices = QWidget()
+        choices_layout = QGridLayout(choices)
+        choices_layout.setContentsMargins(15, 0, 0, 0)
+        device = QComboBox()
+        device.setObjectName("preload_device")
+        device.addItem("CPU", "cpu")
+        device.addItem("GPU", gpu_device())
+        device.setCurrentIndex(max(0, device.findData(self.settings.get("preload_device", self.relaxer.device))))
+        choices_layout.addWidget(QLabel("预加载设备"), 0, 0)
+        choices_layout.addWidget(device, 0, 1)
+        models = {}
+        for index, (name, model) in enumerate(MODELS.items()):
+            box = QCheckBox(model.name)
+            box.setObjectName("preload_" + name)
+            box.setChecked(available[name] and name in self.settings.get("preload_models", [self.relaxer.model]))
+            models[name] = box
+            choices_layout.addWidget(box, 1 + index // 2, index % 2)
+        def update_model_choices():
+            for name, box in models.items():
+                box.setEnabled(available[name] and (device.currentData() == "cpu" or has_gpu_backend(MODELS[name].engine)))
+        device.currentIndexChanged.connect(update_model_choices)
+        update_model_choices()
+        choices.setEnabled(preload.isChecked())
+        preload.toggled.connect(choices.setEnabled)
+        environment_layout.addWidget(choices)
         updates = QPushButton('检查更新')
         updates.setObjectName('check_software_updates')
         def manage_updates():
@@ -2356,6 +2486,9 @@ class Window(QMainWindow):
         environment_layout.addWidget(updates)
         environment_layout.addStretch()
         groups.addTab(environment, SETTINGS_GROUPS[5])
+        from .storage import StoragePage
+        storage = StoragePage(self.maintenance, self.settings)
+        groups.addTab(storage, SETTINGS_GROUPS[6])
         groups.setCurrentIndex(page)
         editing.addRow(QLabel("编辑模式的方向键沿屏幕上下左右移动原子。"))
         step = QDoubleSpinBox()
@@ -2369,11 +2502,32 @@ class Window(QMainWindow):
         boundary = QCheckBox('显示周期性边界')
         boundary.setObjectName('show_cell_boundary')
         boundary.setChecked(self.settings['show_cell_boundary'])
-        atoms.addRow(boundary)
         orientation = QCheckBox('显示 xyz 方向轴')
         orientation.setObjectName('show_orientation_axes')
         orientation.setChecked(self.settings['show_orientation_axes'])
-        atoms.addRow(orientation)
+        zoom = QCheckBox('显示缩放比例')
+        zoom.setObjectName('show_zoom')
+        zoom.setChecked(self.settings['show_zoom'])
+        display_row = QHBoxLayout()
+        display_row.addWidget(boundary)
+        display_row.addWidget(orientation)
+        display_row.addWidget(zoom)
+        display_row.addStretch()
+        atoms.addRow(display_row)
+        show_bonds = QCheckBox("显示键")
+        show_bonds.setObjectName("view_bonds")
+        bond_visible = (self.scene.visual.profile["bonds"]["show"] if self.document is not None
+                        else self.settings.get("view_bonds", True))
+        show_bonds.setChecked(bond_visible)
+        hydrogen = QCheckBox("显示氢键")
+        hydrogen.setObjectName("show_hydrogen_bonds")
+        hydrogen.setToolTip("用虚线连接 H 与受体：N/O/F 供体与受体距离 ≤ 3 Å，供体–H–受体夹角 ≥ 150°。")
+        hydrogen.setChecked(self.settings["show_hydrogen_bonds"])
+        bond_row = QHBoxLayout()
+        for box in (show_bonds, hydrogen):
+            bond_row.addWidget(box)
+        bond_row.addStretch()
+        atoms.addRow(bond_row)
         bond = QDoubleSpinBox()
         bond.setObjectName("bond_scale")
         bond.setRange(0.1, 3)
@@ -2391,7 +2545,15 @@ class Window(QMainWindow):
         radius.setValue(self.settings["bond_radius"])
         from .element_colors import ElementColors
         symbols = self.scene.structure.symbols if self.scene.structure is not None else ()
-        colors = ElementColors(self.settings["element_colors"], self.scene.view_style["elements"],
+        scheme = self.settings.get("element_palette", "default")
+        color_key = custom_color_key(scheme)
+        profile = self.scene.visual.profile if self.scene.visual.advanced else self.scene.view_style
+        custom = profile["name"] not in GENERAL
+        stored_colors = self.settings.get("style_colors", {}).get(profile["name"], {}) if custom else self.settings.get(color_key, {})
+        base_colors = {symbol: entry["color"] for symbol, entry in profile["elements"].items()}
+        if not custom and scheme == "vesta":
+            base_colors.update(vesta_colors())
+        colors = ElementColors(stored_colors, base_colors,
                                symbols[0] if len(symbols) else "H")
         atoms.addRow("元素颜色", colors)
         atoms.addRow("键粗细（半径）", radius)
@@ -2483,20 +2645,45 @@ class Window(QMainWindow):
             self.bond_scale = bond.value()
             self.rotation_step, self.bond_ranges = rotation.value(), ranges
             self.update_rotation_hints()
-            self.settings.update(move_step=self.move_step, bond_scale=self.bond_scale,
+            schedule_changed = (storage.auto.isChecked() != self.settings.get("auto_clean_cache", False)
+                                or storage.days.value() != self.settings.get("cache_days", 30))
+            selected_models = [name for name, box in models.items() if box.isChecked()
+                               and available[name] and (device.currentData() == "cpu" or has_gpu_backend(MODELS[name].engine))]
+            self.settings.update(auto_clean_cache=storage.auto.isChecked(), cache_days=storage.days.value(),
+                                 preload_mlip=preload.isChecked() and bool(selected_models), preload_device=device.currentData(),
+                                 preload_models=selected_models,
+                                 move_step=self.move_step, bond_scale=self.bond_scale,
                                  show_cell_boundary=boundary.isChecked(),
+                                 show_hydrogen_bonds=hydrogen.isChecked(),
                                  show_orientation_axes=orientation.isChecked(),
-                                 bond_radius=radius.value(), element_colors=colors.values,
+                                 show_zoom=zoom.isChecked(),
+                                 bond_radius=radius.value(),
                                  contact_factor=contact.value(), charge_level_step=level_step.value(),
                                  rotation_step=self.rotation_step, bond_ranges=self.bond_ranges,
                                  clipboard_limit=capacity.value(), move_ghost=ghost.isChecked(),
                                  ghost_opacity=opacity.value(), move_decimals=decimals.value(), measure_decimals=precision.value())
+            if custom:
+                self.settings.setdefault("style_colors", {})[profile["name"]] = colors.values
+            else:
+                self.settings[color_key] = colors.values
+            if show_bonds.isChecked() != bond_visible:
+                self.toggle_bonds(show_bonds.isChecked())
+            effective_colors = modeling_colors(self.settings)
             self.settings['shortcuts'] = shortcuts.values() | {'molecule_modifier': shortcuts.molecule.currentText()}
+            if schedule_changed and storage.auto.isChecked():
+                self.maintenance.scheduled()
             self.settings['label_styles'] = labels.values
             self.settings['index_font'] = labels.values['index']['size']
             self.display_panel.font_size.setValue(self.settings['index_font'])
             self.apply_shortcuts()
+            for scene in self.findChildren(Scene):
+                if scene.show_hydrogen_bonds != hydrogen.isChecked():
+                    scene.show_hydrogen_bonds = hydrogen.isChecked()
+                    scene.update_hydrogen_bonds()
+                    scene.plotter.render()
             for scene in self.scenes():
+                scene.show_zoom = zoom.isChecked()
+                scene.update_zoom_label()
                 scene.set_cell_boundary(boundary.isChecked())
                 scene.set_orientation_axes(orientation.isChecked())
                 scene.configure_labels(profiles(self.settings))
@@ -2505,13 +2692,22 @@ class Window(QMainWindow):
                 scene.contact_factor = contact.value()
                 scene.set_bond_scale(self.bond_scale)
                 scene.set_bond_radius(radius.value())
-                if scene.element_colors != colors.values:
-                    scene.element_colors = colors.values
+                scene.style_colors = self.settings.get("style_colors", {})
+                if scene.element_colors != effective_colors or (custom and stored_colors != colors.values):
+                    scene.element_colors = effective_colors
                     if not scene.visual.advanced:
                         scene.set_look(scene.visual.kind)
                 scene.ghost.configure(ghost.isChecked(), opacity.value(), decimals.value())
                 scene.set_measure_decimals(precision.value())
                 scene.plotter.render()
+            if custom and self.scene.visual.advanced and stored_colors != colors.values:
+                active = self.scene.session.render_style
+                saved = self.style_library.get(active["name"], active)
+                for symbol in stored_colors.keys() | colors.values.keys():
+                    active["elements"][symbol]["color"] = colors.values.get(symbol, saved["elements"][symbol]["color"])
+                self.render_panel.populate(active, self.style_library, self.document.structure.symbols)
+                self.render_changed(active)
+            self.sync_appearance()
             self.volume_panels["charge"].set_level_step(level_step.value())
             self.clipboard.set_limit(capacity.value())
             self.persist_settings()
@@ -3109,7 +3305,9 @@ class Window(QMainWindow):
             inspect_water = isinstance(self.builder[0], WaterDialog)
         for name in MODES:
             self.actions[name].setEnabled(loaded and (self.builder is None or name == "rotate" or (inspect_water and name != "edit")))
-        self.actions["edit"].setEnabled(editable)
+        restart_copy = (isinstance(self.document, PoscarDocument) and self.document.restart
+                        and self.builder is None and not self.scene.session.readonly and not trajectory)
+        self.actions["edit"].setEnabled(editable or restart_copy)
         if state is not None:
             self.actions["edit"].setEnabled(editable and len(state.frames) == 1 and self.document.structure.cell is not None)
         self.actions["add"].setEnabled(editable and state is None)
@@ -3225,7 +3423,7 @@ class Window(QMainWindow):
             flag_text = "未设置" if flags is None else " ".join("T" if flag else "F" for flag in flags[index])
             text += f" | #{index + 1} {structure.symbols[index]} 约束 {flag_text}"
         if self.document.restart:
-            text += " | 含续算/额外数据：只读"
+            text += " | 含续算或额外数据，按 E 编辑副本"
         if trajectory:
             session = self.sessions[self.current_index]
             text += f" | 轨迹帧 {session.frame + 1}/{len(session.trajectory.offsets)}"
@@ -3292,6 +3490,31 @@ class Window(QMainWindow):
         if not self.preload_started:
             self.preload_started = True
             QTimer.singleShot(100, self.preload)
+            if self.settings.get("preload_mlip"):
+                QTimer.singleShot(0, self.start_model_preload)
+
+    def start_model_preload(self):
+        if not self.closing:
+            self.model_preload.start(self.settings.get("preload_models", []), self.relaxer.paths,
+                                     self.settings.get("preload_device", self.relaxer.device))
+
+    def model_preload_changed(self):
+        pool = self.model_preload
+        if self.closing:
+            if pool.worker is None:
+                QTimer.singleShot(0, self.close)
+            return
+        for controller in (self.relaxer, self.forcer):
+            controller.use_preloaded()
+            key = (controller.model, controller.path, controller.device)
+            if key in pool.errors and controller.calculator is None and controller.message in ("等待后台预加载", "正在后台预加载"):
+                controller.failed(pool.errors[key])
+        text = ("正在预加载 " + MODELS[pool.active[0]].name if pool.active else f"已预加载 {len(pool.loaded)} 个模型")
+        if pool.errors:
+            text += f" · {len(pool.errors)} 个失败"
+        self.model_load_status.setText(text)
+        self.model_load_status.setToolTip("\n".join(f"{MODELS[key[0]].name}：{error}" for key, error in pool.errors.items()))
+        self.model_load_status.show()
 
     def preload(self):
         if self.preload_task is not None:
@@ -3347,8 +3570,9 @@ class Window(QMainWindow):
             event.ignore()
             return
         self.closing = True
+        self.model_preload.queue.clear()
         self.forcer.stop()
-        if self.loaders or self.relaxer.busy or self.forcer.busy or self.export_job is not None:
+        if self.model_preload.worker is not None or self.loaders or self.relaxer.busy or self.forcer.busy or self.export_job is not None:
             for task in self.loaders.values():
                 task.requestInterruption()
             self.relaxer.stop()
@@ -3379,6 +3603,7 @@ class Window(QMainWindow):
                 QMessageBox.critical(self, '更新未安装', str(error))
                 event.ignore()
                 return
+        self.maintenance.finish()
         self.clipboard.changed.disconnect(self.clipboard_changed)
         for session in self.sessions:
             if session.trajectory is not None and session.trajectory.kind == "neb":

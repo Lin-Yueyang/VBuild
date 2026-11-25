@@ -87,6 +87,7 @@ class ClipboardPanel(QDialog):
             return
         symbols, positions = self.store.entries[index]
         host = self.parent().scene
+        self.scene.show_hydrogen_bonds = host.show_hydrogen_bonds
         self.scene.set_look(host.visual.kind, host.visual.profile, True, rebuild=False)
         self.scene.background = host.background
         structure = Structure(symbols, None, positions.copy(), None, None, symbols, (None,) * len(symbols))

@@ -152,7 +152,7 @@ class CompareCell(QFrame):
                source.show_indices, source.show_fixed, source.show_cell_info, repr(source.grid), source.show_periodic, source.periods,
                tuple(sorted(source.hidden_elements)), repr(source.render_style), repr(view_style), repr(source.render_atoms), source.render_font or window.settings["index_font"],
                repr(window.settings.get('label_styles', {})),
-               source.show_contacts, window.bond_scale, repr(window.bond_ranges),
+               source.show_contacts, scene.show_hydrogen_bonds, window.bond_scale, repr(window.bond_ranges),
                None if run is None else (source.frame, tuple(sorted(run.selected)), tuple(sorted(run.opaque)),
                                          run.opacity, run.bond_opacity))
         if key == self.key:
@@ -178,6 +178,8 @@ class CompareCell(QFrame):
             scene.restore_measurement(source.measurement)
         if reset and source.camera is not None:
             scene.restore_camera(source.camera)
+            scene.zoom_reference = source.zoom_reference or scene.zoom_span()
+            scene.update_zoom_label()
         scene.set_mode(source.mode)
         if source.bader is not None and source.show_bader and source.bader.matches(structure):
             scene.set_charges(source.bader.labels())

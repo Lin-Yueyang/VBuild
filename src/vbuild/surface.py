@@ -4,6 +4,11 @@ import numpy as np
 from vtkmodules.vtkRenderingCore import vtkActor, vtkGlyph3DMapper
 
 SURFACES = {
+    "pastel": """
+        float edge = 1.0 - smoothstep(0.0, 0.66, abs(n.z));
+        vec3 body = base * (0.86 + 0.14*d - 0.10*edge);
+        fragOutput0.rgb = mix(body, vec3(1.0), 0.08*d*d);
+    """,
     "illustration": """
         float tone = mix(0.44, 0.52 + 0.48*d, smoothstep(0.0, 0.28, abs(n.z)));
         fragOutput0.rgb = base * tone;

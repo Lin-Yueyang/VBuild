@@ -27,7 +27,7 @@ class ElementColors(QWidget):
 
     def refresh(self):
         symbol = self.element.symbol
-        color = self.values.get(symbol, self.elements[symbol]["color"])
+        color = self.values.get(symbol, self.elements[symbol])
         swatch = QPixmap(16, 16)
         swatch.fill(QColor(color))
         self.color.setIcon(QIcon(swatch))

@@ -4,8 +4,9 @@ from copy import deepcopy
 
 from .look import default_style
 
-TITLES = {"Default": "Default · 清晰", "塑料": "塑料球体", "橡胶": "橡胶哑光",
-          "卡通": "卡通描边", "二维": "2D 圆片", "柔润": "柔润颗粒"}
+GENERAL = {"Default": "Default · 清晰", "塑料": "塑料球体", "橡胶": "橡胶哑光",
+           "卡通": "卡通描边", "二维": "2D 圆片", "柔润": "柔润颗粒"}
+TITLES = GENERAL | {"粉彩柔光": "粉彩柔光"}
 DESCRIPTIONS = {
     "Default": "原清晰风格，作为默认。",
     "塑料": "硬质亮面、明确的白色高光、细圆柱键。",
@@ -13,6 +14,7 @@ DESCRIPTIONS = {
     "卡通": "分段明暗、深色轮廓、简化键。",
     "二维": "面向屏幕的真正圆片、纯色填充、轮廓与细线键。",
     "柔润": "柔润高光、透亮边缘和细微颗粒，近似果皮质感。",
+    "粉彩柔光": "柔和渐变、轻阴影与细双色键，适合白底结构插图。",
 }
 
 
@@ -21,15 +23,22 @@ def builtins():
     for name in TITLES:
         style = default_style()
         style.update(name=name, description=DESCRIPTIONS[name])
-        lighting = {"Default": "illustration", "塑料": "plastic", "橡胶": "rubber", "卡通": "toon", "二维": "disc", "柔润": "fruit"}[name]
+        lighting = {"Default": "illustration", "塑料": "plastic", "橡胶": "rubber", "卡通": "toon", "二维": "disc", "柔润": "fruit", "粉彩柔光": "pastel"}[name]
         style["scene"]["lighting"] = lighting
-        style["scene"]["atom_scale"] = {"Default": 1., "塑料": 1.1, "橡胶": 1.25, "卡通": 1.1, "二维": 1.1, "柔润": 1.15}[name]
+        style["scene"]["atom_scale"] = {"Default": 1., "塑料": 1.1, "橡胶": 1.25, "卡通": 1.1, "二维": 1.1, "柔润": 1.15, "粉彩柔光": 1.}[name]
         if name in ("橡胶", "卡通", "二维"):
             style["bonds"].update(split=False, color="#52606D", radius=.065)
         if name == "塑料":
             style["bonds"]["radius"] = .075
         if name == "二维":
             style["bonds"].update(shape="line", width=3.)
+        if name == "粉彩柔光":
+            style["bonds"]["radius"] = .085
+            for symbol, color, radius in (
+                ("C", "#CEA48D", .37), ("N", "#D0DEF0", .37), ("O", "#EF6577", .38),
+                ("H", "#EDEEEB", .30), ("Co", "#7498D2", .55), ("Gd", "#D29DBA", .82),
+            ):
+                style["elements"][symbol].update(color=color, radius=radius)
         result[name] = style
     return result
 

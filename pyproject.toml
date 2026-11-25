@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vbuild"
-version = "0.3.46"
+version = "1.0.0"
 description = "A small VASP structure editor"
 requires-python = ">=3.11,<3.14"
 dependencies = ["numpy>=2.0,<3", "ase>=3.26,<4", "scipy>=1.13,<2"]
@@ -23,4 +23,4 @@ vbuild = "vbuild.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-vbuild = ["keys.json", "settings.json", "runtime.json", "icons/*.svg", "icons/*.ico", "icons/*.png"]
+vbuild = ["keys.json", "settings.json", "runtime.json", "vesta.json", "icons/*.svg", "icons/*.ico", "icons/*.png"]

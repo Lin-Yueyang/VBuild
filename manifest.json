@@ -1,7 +1,7 @@
 {
-  "version": "0.3.46",
+  "version": "1.0.0",
   "platform": "Windows lightweight",
-  "bytes": 1235440,
+  "bytes": 1279259,
   "files": [
     {
       "path": ".gitattributes",
@@ -26,12 +26,12 @@
     {
       "path": "VBuild.exe",
       "bytes": 69120,
-      "sha256": "298c39a882dd4f1ba2d3a48278706d97bc9c94ae4700ddee7c1bed21159da0f7"
+      "sha256": "ee8448f7cc018e76ec3a1bb90fefb822f5be06ec978d6a7d6ea8f05229072704"
     },
     {
       "path": "docs/buttons.md",
-      "bytes": 10036,
-      "sha256": "cb6f5b433dde53ccb55856dcbb9a86adc4dd35d2a3a1adc3765940e4e7c0236d"
+      "bytes": 11407,
+      "sha256": "b1f1ad22c84201f1e94f66e3fb2fd48b5c4bbc2f811382a6157466d904e3b12b"
     },
     {
       "path": "docs/grid.md",
@@ -40,8 +40,8 @@
     },
     {
       "path": "docs/updates.md",
-      "bytes": 6421,
-      "sha256": "f9c5905a526d88763d65390351f97e6a3f0f2e4a62fd5f0ff2b41413787dd31b"
+      "bytes": 1083,
+      "sha256": "38c76a13b628a2df9d2f254d0babfe9bab4f1833d8c6612415546a5a7511752c"
     },
     {
       "path": "gui.pyw",
@@ -50,8 +50,8 @@
     },
     {
       "path": "pyproject.toml",
-      "bytes": 854,
-      "sha256": "696cacc2a6577eae5f3b1e7490886d85f3f7846f8270042e387b0a7424279d35"
+      "bytes": 867,
+      "sha256": "cc2b858ba3df1c20bf14c503f9b37a81cc8af4c5bf45bd1490dcaff7c4606fde"
     },
     {
       "path": "run.py",
@@ -70,8 +70,8 @@
     },
     {
       "path": "src/vbuild/app.py",
-      "bytes": 6878,
-      "sha256": "a75226b067e8c308c377584413d240aefe698db1e69ea9c88a9ca55e251b9897"
+      "bytes": 7692,
+      "sha256": "fa9d4ba3a78e36f3efade5466ae2db3bf9b574e494ad81b760190a2f37553df7"
     },
     {
       "path": "src/vbuild/appearance.py",
@@ -119,6 +119,11 @@
       "sha256": "b7ed945ccd085db085b537b1f8c8d2654eb25a46c5fcc4e8a665eb17c5d0603f"
     },
     {
+      "path": "src/vbuild/cache_cleanup.py",
+      "bytes": 2574,
+      "sha256": "ea1daca221ada1ab5a68ec67e1c8a55fd8c610b7be31fef9f80fa3a43e9a027f"
+    },
+    {
       "path": "src/vbuild/catalog.py",
       "bytes": 2149,
       "sha256": "5c0f677637037a96e8c2a27d48fb7e2d47197ee8c53effe22bed09b7dc84952f"
@@ -140,8 +145,8 @@
     },
     {
       "path": "src/vbuild/clipboard.py",
-      "bytes": 3812,
-      "sha256": "605d0cf824674031cc416165de49e4eecc2e80318d6bd5778b13eb8158817b0e"
+      "bytes": 3878,
+      "sha256": "6d9fa79affd9f202309c273fa4c8024cb061a9eb8bb91c91b8b3e677979a6c87"
     },
     {
       "path": "src/vbuild/close.py",
@@ -160,8 +165,8 @@
     },
     {
       "path": "src/vbuild/compare.py",
-      "bytes": 14577,
-      "sha256": "57b34bce89d4bdc5eac5a08236d4cd03a5f75689df1202745d9716b72f89bcea"
+      "bytes": 14720,
+      "sha256": "39b6ae3c08ba0a5b8d6829fc480e32befb10225e146c7bc7cf594480a5365952"
     },
     {
       "path": "src/vbuild/contacts.py",
@@ -220,8 +225,8 @@
     },
     {
       "path": "src/vbuild/element_colors.py",
-      "bytes": 1657,
-      "sha256": "7a879762b6402209eb6cb45dadee9816f29f4eaea55103f036960059be1d4e95"
+      "bytes": 1648,
+      "sha256": "7a337b4d0ec46faaec0bd6fe20187597bd45fec0d3ed0b38e45226a900b85447"
     },
     {
       "path": "src/vbuild/element_filter.py",
@@ -240,13 +245,18 @@
     },
     {
       "path": "src/vbuild/export_dialog.py",
-      "bytes": 13411,
-      "sha256": "556d788dce30bf721251129e669c3a675748baa9b934adf13d6a23dc5a4e39d2"
+      "bytes": 14511,
+      "sha256": "63e7d65f03766be50ecda5eeefc024fc965506f1beed54fc1ffdf147398b10e2"
     },
     {
       "path": "src/vbuild/export_worker.py",
-      "bytes": 4937,
-      "sha256": "5763932c1f377309aa9eaf3e0a26e1acb200a562dcc3b54b5ac9d6bea4076844"
+      "bytes": 5622,
+      "sha256": "61c8eae85e43cd51dc03888194c722638c3f3d280de62c4e44fab57b9ef44498"
+    },
+    {
+      "path": "src/vbuild/file_channel.py",
+      "bytes": 2073,
+      "sha256": "19ca5aa1183782582b6ff95c4b49693fdea7cd7324e8273d8505f7ea74500f5f"
     },
     {
       "path": "src/vbuild/fixed.py",
@@ -307,6 +317,16 @@
       "path": "src/vbuild/history_menu.py",
       "bytes": 1721,
       "sha256": "bb54343272e257a86b7c2d9e450c6428a755dc0bc0f656b3d5cd530d4ee4ae12"
+    },
+    {
+      "path": "src/vbuild/hydrogen.py",
+      "bytes": 2821,
+      "sha256": "e147efa249695accaadf4c9a877efb441c464d79b051447a4dee9f31e9c2cfbc"
+    },
+    {
+      "path": "src/vbuild/hydrogen_view.py",
+      "bytes": 1012,
+      "sha256": "035544d7e35965b4066dd29d61aaeee932fa8491bb62d1126e2287f5f46a0512"
     },
     {
       "path": "src/vbuild/icons/angle.svg",
@@ -550,8 +570,8 @@
     },
     {
       "path": "src/vbuild/image_export.py",
-      "bytes": 3429,
-      "sha256": "3742f3edb6ddd8d85885053db7a5f779a9911e44cf3618dfbaca1cd2575c0559"
+      "bytes": 6286,
+      "sha256": "0c5f8057f16f27c9283f4f230ec0e20357df1ce76b8f0e6856f28ff9ba935cd7"
     },
     {
       "path": "src/vbuild/import_dialog.py",
@@ -560,8 +580,8 @@
     },
     {
       "path": "src/vbuild/inputs.py",
-      "bytes": 4203,
-      "sha256": "fb9161481a52cfc63a550677e0695dc2a3dce90600bab99402c74659fdad16be"
+      "bytes": 4400,
+      "sha256": "c3fe8be379f9b5378f84a7d666f7b4b295a5b83cf54abcae4ce88cd3f98a9fef"
     },
     {
       "path": "src/vbuild/keys.json",
@@ -600,8 +620,8 @@
     },
     {
       "path": "src/vbuild/look.py",
-      "bytes": 8774,
-      "sha256": "81fd82d8bfa1238d5ac637f9381430eab092969d1ba4c30b846f55afc4b0100b"
+      "bytes": 8802,
+      "sha256": "a2a054731656abfd6ec3ad97c6ebd3d7592fc81c66b344cccc9cffc04607b4a1"
     },
     {
       "path": "src/vbuild/mac.py",
@@ -654,6 +674,11 @@
       "sha256": "c484ce9062805192d160fce9c1a3dedde05638f999ce6d1358ca57dac08f1e43"
     },
     {
+      "path": "src/vbuild/model_preload.py",
+      "bytes": 2052,
+      "sha256": "9f2aab7dea0a32f43e48599724cf717bba6ad41896fb6ac8114c4caf0bb444c1"
+    },
+    {
       "path": "src/vbuild/molecules.py",
       "bytes": 13382,
       "sha256": "f0336af760a6a6555fca1cc1e365baf48be5b36bdd50999414cbb022f2dcf136"
@@ -690,8 +715,8 @@
     },
     {
       "path": "src/vbuild/neb_cache.py",
-      "bytes": 2696,
-      "sha256": "5af2053ca315c0eb0090a86e0832d50430799cbf17c2b9d58cba8ed1e755ae17"
+      "bytes": 2963,
+      "sha256": "7bd703e8e090af27a3dcbd2238f88e8d4126f2447300539530ade094be0a10d9"
     },
     {
       "path": "src/vbuild/neb_dialog.py",
@@ -715,8 +740,8 @@
     },
     {
       "path": "src/vbuild/neb_view.py",
-      "bytes": 3000,
-      "sha256": "2107de7abadccbbfe563c12e38fd6f19245de2567c43db068110b20928384708"
+      "bytes": 3561,
+      "sha256": "03698818d68ba265293da78deb6456cab1eb1be11dddba3b0fdbb0afa01968f9"
     },
     {
       "path": "src/vbuild/nep.py",
@@ -735,8 +760,8 @@
     },
     {
       "path": "src/vbuild/palette.py",
-      "bytes": 995,
-      "sha256": "dd04ef877034c089bb9d31ea232a74607e76223f61501e2dae7f812c30f015c7"
+      "bytes": 1566,
+      "sha256": "58f676be4d3c62ef6f9cb72678d01956665c22ecfc9fcc05cea2c9662a38da7c"
     },
     {
       "path": "src/vbuild/paste.py",
@@ -760,8 +785,8 @@
     },
     {
       "path": "src/vbuild/poscar.py",
-      "bytes": 14867,
-      "sha256": "480dec5aad7134528764434a01c47d34227d5261fd5a48a752b560b6b0b739ca"
+      "bytes": 15352,
+      "sha256": "f8d855ca17970d3e9f8cc83cae0988202cfe653dfd6199d57d972fde1ec2c049"
     },
     {
       "path": "src/vbuild/process_job.py",
@@ -790,8 +815,8 @@
     },
     {
       "path": "src/vbuild/relax_worker.py",
-      "bytes": 11603,
-      "sha256": "0159b26842f0357a5b370c4811304cb70856eadefa5bac830a7a8b64727637f2"
+      "bytes": 12535,
+      "sha256": "42df83163d4dda1d8f4a288c6396258371c76af5abfae9d9dd2b0d515a4ed2ad"
     },
     {
       "path": "src/vbuild/render_panel.py",
@@ -830,18 +855,18 @@
     },
     {
       "path": "src/vbuild/scene.py",
-      "bytes": 47210,
-      "sha256": "7a221e04b3aeee3b76480d7587986870bd3e48e60925dbaf8282fa319ecd68e5"
+      "bytes": 49764,
+      "sha256": "ceb87dfefd115e37ac220e1642dd2360152d14f0989d62dd7523b53a4c07aa2c"
     },
     {
       "path": "src/vbuild/session.py",
-      "bytes": 2214,
-      "sha256": "df72844debf23fbd27e77d355533e8ff935638e75b2edde281bf0d252a1f9ec0"
+      "bytes": 2267,
+      "sha256": "edaa2f4753688fbaddc3874fde5cdb8f2daeaa37239ca3b6e0f8ef80ab0b4c52"
     },
     {
       "path": "src/vbuild/settings.json",
-      "bytes": 509,
-      "sha256": "9cce3a5dd5404488cab7fc1a34e3a4c5f48320c532754218e230b1aa5c34db32"
+      "bytes": 649,
+      "sha256": "03811977fc14c12f87172d1bc133c69ca3a30833275ed0f56cbac5c17591f506"
     },
     {
       "path": "src/vbuild/shortcuts.py",
@@ -874,24 +899,34 @@
       "sha256": "cfb485662932229fc3c3075e54f37ef88a2afcfdcb09a387786c452a4743646a"
     },
     {
+      "path": "src/vbuild/storage.py",
+      "bytes": 3864,
+      "sha256": "a0bf3296a1376988e4d51d7d6699022e6a408a254f38c6ba14e2a79eb5b925fb"
+    },
+    {
       "path": "src/vbuild/style_panel.py",
-      "bytes": 1399,
-      "sha256": "af0ed4b83b4f684f614aa2626412d6fb89082a3e33873339a3a4d6df4e47252b"
+      "bytes": 3264,
+      "sha256": "b27f5b68872eeb4142d32319600a94c0fff6c5d320118337db252eecce275d62"
     },
     {
       "path": "src/vbuild/styles.py",
-      "bytes": 2001,
-      "sha256": "22ce1df95bf9a47a61380b78df56f0f281b1ed70d147edda465c3985cd278a65"
+      "bytes": 2580,
+      "sha256": "efdd3e465ab8028fa561517b0b6212c74af6ab64ca26b37cb5f6d5a05cd2555b"
     },
     {
       "path": "src/vbuild/surface.py",
-      "bytes": 3971,
-      "sha256": "3531afe69096d95b83bdc34be77dee95bee39e7e1e674ae97ff0489fb45d377d"
+      "bytes": 4172,
+      "sha256": "722587a66250d20a155cfb5ee743ff534690d33d3012546fbb9282108b8994d3"
     },
     {
       "path": "src/vbuild/tabs.py",
       "bytes": 7809,
       "sha256": "1bf3cc93eeb00ca8bc607b00d2a36828d0e84d3d95f91daf05312779a48ad53b"
+    },
+    {
+      "path": "src/vbuild/taskbar.py",
+      "bytes": 2223,
+      "sha256": "75142619d013fa97459346bb3530d92b30f7c63a5f9195ebf1d85f20a0ef05b8"
     },
     {
       "path": "src/vbuild/thermal.py",
@@ -924,9 +959,14 @@
       "sha256": "959a638093ea53927e7e080e3b4d135d4888035fec5f87aa4ea1dc0ff468331e"
     },
     {
+      "path": "src/vbuild/vesta.json",
+      "bytes": 1794,
+      "sha256": "697082b3ab9b63031d0a2681e0539b46932bbf8eaa9c695e6fd2e0a21901aad0"
+    },
+    {
       "path": "src/vbuild/view.py",
-      "bytes": 1284,
-      "sha256": "08f5719ddaeb1941278723dc6e006013ed9a9fa1e2b3abd31d04619f4b5de4ab"
+      "bytes": 1817,
+      "sha256": "60c7220df666bcc9fa70b0c25b0eb1b119858cd91e4e98b098443562e5d7ab26"
     },
     {
       "path": "src/vbuild/visual.py",
@@ -970,8 +1010,8 @@
     },
     {
       "path": "src/vbuild/window.py",
-      "bytes": 181377,
-      "sha256": "64b410112421faacd3b8e3273ab59012acba5850bd468baa2f2eee5c8ed989a1"
+      "bytes": 193907,
+      "sha256": "6255f130c5b28395034ef812ebf59bb9ef1fd88162a3aa20fef03bbc95d44f42"
     },
     {
       "path": "src/vbuild/wrap.py",
@@ -982,6 +1022,11 @@
       "path": "src/vbuild/writing.py",
       "bytes": 4830,
       "sha256": "5e2d0dc354d0889dd600355abc9e37f2d4d44f8af6361860dc0f89212f1e28d8"
+    },
+    {
+      "path": "src/vbuild/zoom.py",
+      "bytes": 2208,
+      "sha256": "46c03a30c02df4210c70c2f02b136d2a3caf21126ffbf261f8f2595016718de0"
     },
     {
       "path": "tools/check.py",

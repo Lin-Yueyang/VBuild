@@ -116,15 +116,36 @@ class StartupWindow(QMainWindow):
 def launch(path: Path | None = None, *, paths=(), settings_path=None):
     started = perf_counter()
     if sys.platform == "win32":
-        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("VBuild.StructureEditor")
+        from .taskbar import APP_ID, set_window_identity
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_ID)
     application = Application(sys.argv[:1])
+    requested = ([path] if path is not None else []) + list(paths)
+    if sys.platform == "win32":
+        from .file_channel import route_files
+        def open_in_workspace(files):
+            if shell.isMinimized():
+                shell.showNormal()
+            shell.raise_()
+            shell.activateWindow()
+            if shell.workspace is None:
+                shell.paths.extend(files)
+            else:
+                for source in files:
+                    shell.workspace.open_path(source)
+        channel = route_files(requested, open_in_workspace, settings_path)
+        if channel is None:
+            return
     application.setApplicationName("VBuild")
     application.setApplicationDisplayName("VBuild")
     from .language import chinese
     chinese()
     application.setWindowIcon(QIcon(str(Path(__file__).with_name("icons") / "app.png")))
     from .warmup import ImportTask
-    shell = StartupWindow(([path] if path is not None else []) + list(paths), settings_path)
+    shell = StartupWindow(requested, settings_path)
+    if sys.platform == "win32":
+        hwnd = int(shell.winId())
+        set_window_identity(hwnd)
+        application.aboutToQuit.connect(lambda: set_window_identity(hwnd, clear=True))
     application.shell = shell
     shell.paths.extend(application.pending_files)
     application.pending_files.clear()

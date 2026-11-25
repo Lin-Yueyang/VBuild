@@ -12,7 +12,7 @@ from .palette import palette
 KINDS = (("ball", "球棍模型"), ("space", "空间填充模型"),
          ("poly", "多面体模型"), ("stick", "棍状模型"))
 LIGHTS = (("illustration", "清晰柔光"), ("plastic", "塑料球体"), ("rubber", "橡胶哑光"),
-          ("toon", "卡通描边"), ("disc", "2D 圆片"), ("fruit", "柔润颗粒"),
+          ("toon", "卡通描边"), ("disc", "2D 圆片"), ("fruit", "柔润颗粒"), ("pastel", "粉彩柔光"),
           ("flat", "纯色球体"), ("soft", "柔和漫反射"), ("studio", "材质灯光"))
 
 

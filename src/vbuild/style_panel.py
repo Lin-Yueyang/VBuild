@@ -4,10 +4,57 @@ from pathlib import Path
 
 from PySide6.QtCore import Signal
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QHBoxLayout, QPushButton, QRadioButton, QVBoxLayout
+from PySide6.QtWidgets import QDialog, QHBoxLayout, QListWidget, QMessageBox, QPushButton, QRadioButton, QVBoxLayout
+from .styles import GENERAL, TITLES
 
 from .look import KINDS
 from .overlay import Overlay
+
+
+class StyleManager(QDialog):
+    def __init__(self, window):
+        super().__init__(window)
+        self.window = window
+        self.setWindowTitle("管理样式")
+        self.resize(340, 285)
+        layout = QVBoxLayout(self)
+        self.items = QListWidget()
+        layout.addWidget(self.items)
+        row = QHBoxLayout()
+        load = QPushButton("导入样式")
+        self.remove = QPushButton("删除样式")
+        close = QPushButton("关闭")
+        for button in (load, self.remove, close):
+            row.addWidget(button)
+        layout.addLayout(row)
+        self.items.currentTextChanged.connect(lambda name: self.remove.setEnabled(bool(name) and name not in TITLES))
+        load.clicked.connect(self.import_file)
+        self.remove.clicked.connect(self.remove_file)
+        close.clicked.connect(self.accept)
+        self.refresh()
+
+    def refresh(self, selected=None):
+        self.items.clear()
+        self.items.addItems([name for name in self.window.style_library if name not in GENERAL])
+        self.items.setCurrentRow(0)
+        if selected:
+            for index in range(self.items.count()):
+                if self.items.item(index).text() == selected:
+                    self.items.setCurrentRow(index)
+                    break
+
+    def import_file(self):
+        self.refresh(self.window.import_view_style())
+
+    def remove_file(self):
+        name = self.items.currentItem().text()
+        if QMessageBox.question(self, "删除样式", f"从样式库删除「{name}」？") == QMessageBox.StandardButton.Yes:
+            try:
+                self.window.remove_saved_style(name)
+            except OSError as error:
+                QMessageBox.critical(self, "样式无法删除", str(error))
+                return
+            self.refresh()
 
 
 class StylePanel(Overlay):

@@ -41,6 +41,9 @@ def input_kind(path):
     if suffix == ".cif":
         return "cif"
     if suffix == ".xdatcar" or path.name.upper().startswith("XDATCAR"):
+        tokens = marker.lower().split()
+        if tokens and tokens[0] in (b"direct", b"cartesian", b"selective", b"kpoints") and b"configuration" not in marker.lower():
+            return "vasp"
         return "xdatcar"
     return "vasp"
 

@@ -169,6 +169,18 @@ class PoscarDocument:
         if self.restart:
             raise ValueError("此文件含 MD 续算或未识别的尾部数据；当前阶段只允许查看和原样保存。")
 
+    def modeling_copy(self):
+        count = len(self.original_symbols)
+        end = self.position_start + count
+        rows = self.lines[:end]
+        if self.input_velocities is not None:
+            if self.lines[end].lstrip().lower().startswith("lattice velocities"):
+                end += 8
+            rows.extend(self.lines[end:end + count + 1])
+        document = type(self).from_bytes("".join(rows).encode("utf-8"))
+        document.unsaved = True
+        return document
+
     def to_bytes(self, *, regenerate: bool = True, seed: int | None = None) -> bytes:
         structure = self.structure
         count = len(structure.symbols)

@@ -3,9 +3,9 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from PySide6.QtCore import QDir, QEvent, QSize, QStandardPaths, QUrl, Qt
+from PySide6.QtCore import QDir, QEvent, QEventLoop, QIdentityProxyModel, QSize, QStandardPaths, QUrl, Qt
 from PySide6.QtGui import QActionGroup, QIcon
-from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox,
+from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox,
                               QFileDialog, QFileSystemModel, QGridLayout, QGroupBox, QHeaderView, QLabel, QLineEdit,
                               QListView, QMenu, QSpinBox, QSplitter, QToolButton, QTreeView)
 
@@ -29,6 +29,13 @@ class DirectoryField(QLineEdit):
         super().keyPressEvent(event)
 
 
+class ExportFiles(QIdentityProxyModel):
+    def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):
+        if section == 1 and orientation == Qt.Orientation.Horizontal and role == Qt.ItemDataRole.DisplayRole:
+            return "大小"
+        return super().headerData(section, orientation, role)
+
+
 class ExportDialog(QFileDialog):
     def __init__(self, parent, title, target, filters, *, trajectory=False, frames=1,
                  preserved_mode=None, on_export=None, image_options=None):
@@ -38,6 +45,8 @@ class ExportDialog(QFileDialog):
         self.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
         self.setFileMode(QFileDialog.FileMode.AnyFile)
         self.setViewMode(QFileDialog.ViewMode.Detail)
+        self.setProxyModel(ExportFiles(self))
+        self.exporting = False
         self.resize(820, 520)
         desktop = QUrl.fromLocalFile(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DesktopLocation))
         self.setSidebarUrls([desktop, *(url for url in self.sidebarUrls() if url != desktop)])
@@ -88,6 +97,7 @@ class ExportDialog(QFileDialog):
         splitter = self.findChild(QSplitter, 'splitter')
         splitter.setSizes([130, 650])
         details = self.findChild(QTreeView, 'treeView')
+        details.sortByColumn(0, Qt.SortOrder.AscendingOrder)
         header = details.header()
         header.setStretchLastSection(False)
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
@@ -108,6 +118,9 @@ class ExportDialog(QFileDialog):
         self.error.setStyleSheet('color: #a52c2c;')
         self.error.hide()
         layout.addWidget(self.error, 5, 0, 1, 3)
+        self.progress_text = QLabel("正在导出图片…", self)
+        self.progress_text.hide()
+        layout.addWidget(self.progress_text, 5, 0, 1, 3)
         self.show_directory(self.directory().absolutePath())
         self.findChild(QFileSystemModel).rootPathChanged.connect(self.show_directory)
         buttons = self.findChild(QDialogButtonBox, 'buttonBox')
@@ -205,9 +218,6 @@ class ExportDialog(QFileDialog):
         kind = self.filters[selected]
         if self.image_options is not None:
             self.setDefaultSuffix(kind)
-            name = Path(self.filename.text())
-            if name.suffix.lower() in ('.png', '.svg') and name.suffix.lower() != '.' + kind:
-                self.filename.setText(str(name.with_suffix('.' + kind)))
             return
         vasp = not self.trajectory and kind == 'vasp'
         editable = self.preserved_mode is None
@@ -260,11 +270,27 @@ class ExportDialog(QFileDialog):
         super().accept()
 
     def done(self, result):
+        if self.exporting:
+            return
         if result == QDialog.DialogCode.Accepted and self.on_export is not None:
+            image = self.image_options is not None
             try:
-                options = self.image_options if self.image_options is not None else self.export_options()
+                if image:
+                    self.exporting = True
+                    self.error.hide()
+                    self.setEnabled(False)
+                    self.setCursor(Qt.CursorShape.WaitCursor)
+                    self.progress_text.show()
+                    QApplication.processEvents(QEventLoop.ProcessEventsFlag.ExcludeUserInputEvents)
+                options = self.image_options if image else self.export_options()
                 self.on_export(Path(self.selectedFiles()[0]), self.kind, options)
             except (ValueError, OSError) as error:
                 self.show_error(str(error))
                 return
+            finally:
+                if image:
+                    self.exporting = False
+                    self.progress_text.hide()
+                    self.unsetCursor()
+                    self.setEnabled(True)
         super().done(result)

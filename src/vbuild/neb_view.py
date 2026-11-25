@@ -3,6 +3,7 @@
 import numpy as np
 
 from .paste import PastePreview
+from .hydrogen_view import HydrogenBonds
 from .visual import reflected_normals, reflection
 
 
@@ -10,12 +11,14 @@ class NebView:
     def __init__(self, scene):
         self.scene, self.layers, self.enabled, self.key = scene, [], False, None
         self.image_keys = {}
+        self.hbonds = []
         scene.plotter.renderer.AddObserver("StartEvent", self.before_render)
 
     def before_render(self, *_args):
         if not self.enabled:
             return
         visual = self.scene.visual
+        self.scene.hbonds.actor.VisibilityOff()
         for actor in visual.actors():
             actor.VisibilityOff()
         for layer in self.layers:
@@ -29,12 +32,14 @@ class NebView:
         self.image_keys.clear()
         for layer in self.layers:
             layer.cancel()
+        for bonds in self.hbonds:
+            bonds.actor.VisibilityOff()
 
     def update(self, run, index):
         self.enabled = True
         renderer, scene = self.scene.plotter.renderer, self.scene
         common = (id(run), scene.period_counts(), scene.visual.kind, repr(scene.visual.profile), scene.visual.advanced,
-                  scene.bond_scale, repr(scene.bond_ranges))
+                  scene.bond_scale, repr(scene.bond_ranges), scene.show_hydrogen_bonds)
         key = (index, tuple(sorted(run.selected)), tuple(sorted(run.opaque)), run.opacity, run.bond_opacity, common)
         if key == self.key:
             return
@@ -44,9 +49,11 @@ class NebView:
             for actor in (layer.actor, layer.metal_actor):
                 reflected_normals(actor)
             self.layers.append(layer)
+            self.hbonds.append(HydrogenBonds(renderer))
         for image, layer in enumerate(self.layers):
             if image >= len(run.images) or image not in run.selected:
                 layer.cancel()
+                self.hbonds[image].actor.VisibilityOff()
                 self.image_keys.pop(image, None)
                 continue
             geometry = (common, min(index, run.images[image].count-1))
@@ -59,9 +66,11 @@ class NebView:
                            visual.kind, visual.profile, visual.advanced, visual.sign)
                 layer.start(structure.symbols, structure.positions, context, pbc=structure.pbc)
                 layer.move(structure.positions.mean(axis=0))
+                self.hbonds[image].update(scene.show_hydrogen_bonds, structure, structure.positions, counts, layer.visual)
                 self.image_keys[image] = geometry
             opacity = 1 if image in run.opaque else run.opacity
             for actor in layer.visual.atom_actors():
                 actor.GetProperty().SetOpacity(opacity)
             for actor in (layer.bond_actor, layer.visual.tube_actor):
                 actor.GetProperty().SetOpacity(1 if image in run.opaque else run.bond_opacity)
+            self.hbonds[image].actor.GetProperty().SetOpacity(1 if image in run.opaque else run.bond_opacity)
